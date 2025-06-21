@@ -11,7 +11,10 @@
     "@types/react-router-dom": "^5.3.3",
     "@vercel/blob": "^1.1.1",
     "autoprefixer": "^10.4.14",
+    "concurrently": "^7.6.0",
+    "cors": "^2.8.5",
     "date-fns": "^2.29.3",
+    "express": "^4.18.2",
     "firebase": "^11.9.1",
     "lucide-react": "^0.263.1",
     "openai": "^5.6.0",
@@ -26,6 +29,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:api": "node server.js",
+    "dev": "concurrently \"npm run start:api\" \"npm start\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

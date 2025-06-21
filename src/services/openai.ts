@@ -9,7 +9,12 @@ const isOpenAIConfigured = (): boolean => {
 // Helper function to make secure API calls to our backend
 const callSecureAPI = async (action: string, data: any) => {
   try {
-    const response = await fetch('/api/openai', {
+    // Use different endpoints for development vs production
+    const apiUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3001/api/openai'  // Development server
+      : '/api/openai';  // Vercel serverless function in production
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
