@@ -9,23 +9,34 @@ const getBlobToken = (): string | undefined => {
   return process.env.NODE_ENV === 'production' ? 'api-route-available' : undefined;
 };
 
+// Track if we've already logged the configuration
+let blobConfigLogged = false;
+let storageInitLogged = false;
+
 const isVercelBlobConfigured = (): boolean => {
   // Vercel Blob works via API routes in production
   const isProduction = process.env.NODE_ENV === 'production';
   const token = getBlobToken();
   const isConfigured = isProduction && !!token;
   
-  console.log('Vercel Blob configuration check:', {
-    isProduction,
-    hasApiRoute: !!token,
-    isConfigured,
-    mode: 'API route (server-side BLOB_READ_WRITE_TOKEN)'
-  });
+  // Only log configuration details once on startup
+  if (!blobConfigLogged) {
+    console.log('🗄️ Storage Configuration:', {
+      environment: isProduction ? 'Production' : 'Development',
+      blobStorage: isConfigured ? 'Enabled' : 'Disabled (using local storage)',
+      mode: 'API route (server-side BLOB_READ_WRITE_TOKEN)'
+    });
+    blobConfigLogged = true;
+  }
   
   return isConfigured;
 };
 
-console.log(isVercelBlobConfigured() ? 'Vercel Blob configured for production' : 'Using local storage (Vercel Blob only works in production)');
+// Initial configuration check
+if (!storageInitLogged) {
+  console.log('🚀 Disney Trip Planner Storage:', isVercelBlobConfigured() ? 'Vercel Blob configured for production' : 'Using local storage (Vercel Blob only works in production)');
+  storageInitLogged = true;
+}
 
 // User ID - for now we'll use a simple device-based ID
 // Later this can be replaced with actual user authentication
@@ -69,15 +80,8 @@ export const vercelBlobStorage: CloudStorageService = {
     try {
       const deviceId = getDeviceId();
       
-      // Debug logging
-      console.log('Attempting to save trip:', {
-        id: trip.id,
-        name: trip.name,
-        daysCount: trip.days?.length || 0,
-        hasValidId: !!trip.id,
-        hasValidName: !!trip.name,
-        tripKeys: Object.keys(trip)
-      });
+      // Save trip to cloud storage
+      console.log(`💾 Saving trip "${trip.name}" to Vercel Blob...`);
       
       const response = await withTimeout(
         fetch(`/api/blob?action=save&deviceId=${deviceId}`, {
@@ -104,7 +108,7 @@ export const vercelBlobStorage: CloudStorageService = {
       }
       
       const result = await response.json();
-      console.log('Trip saved to Vercel Blob:', trip.id, result.url);
+      console.log(`✅ Trip "${trip.name}" saved to Vercel Blob successfully`);
     } catch (error) {
       console.error('Error saving trip to Vercel Blob:', error);
       // If we get network errors, fall back to local storage
@@ -115,7 +119,7 @@ export const vercelBlobStorage: CloudStorageService = {
         error.message.includes('CORS') ||
         error.message.includes('TypeError')
       )) {
-        console.log('Network error during save, falling back to local storage');
+        console.log('🔄 Network error during save, falling back to local storage');
         const { saveTrip } = await import('./tripStorage');
         saveTrip(trip);
         // Mark this as successful to prevent retries
@@ -133,7 +137,7 @@ export const vercelBlobStorage: CloudStorageService = {
     try {
       const deviceId = getDeviceId();
       
-      console.log('Loading trips from Vercel Blob for device:', deviceId);
+      console.log('📱 Loading trips from Vercel Blob for device:', deviceId);
       
       const response = await withTimeout(
         fetch(`/api/blob?action=list&deviceId=${deviceId}`),
@@ -147,7 +151,7 @@ export const vercelBlobStorage: CloudStorageService = {
       const result = await response.json();
       const trips = result.trips || [];
       
-      console.log(`Successfully loaded ${trips.length} trips from Vercel Blob`);
+      console.log(`✅ Successfully loaded ${trips.length} trips from Vercel Blob`);
       return trips;
     } catch (error) {
       console.error('Error loading trips from Vercel Blob:', error);
@@ -159,7 +163,7 @@ export const vercelBlobStorage: CloudStorageService = {
         error.message.includes('Network request failed') ||
         error.message.includes('CORS')
       )) {
-        console.log('Network error detected, falling back to local storage');
+        console.log('🔄 Network error detected, falling back to local storage');
         const { getTrips } = await import('./tripStorage');
         return getTrips();
       }
@@ -199,7 +203,7 @@ export const vercelBlobStorage: CloudStorageService = {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      console.log('Trip deleted from Vercel Blob:', id);
+      console.log(`🗑️ Trip deleted from Vercel Blob: ${id}`);
     } catch (error) {
       console.error('Error deleting trip from Vercel Blob:', error);
       throw new Error('Failed to delete trip from cloud storage');
@@ -208,8 +212,7 @@ export const vercelBlobStorage: CloudStorageService = {
 
   subscribeToTrips(callback: (trips: Trip[]) => void): Unsubscribe {
     // Vercel Blob doesn't have real-time subscriptions like Firestore
-    // Temporarily disabled polling to prevent error loops
-    console.log('Vercel Blob polling disabled to prevent error loops');
+    // Using single load instead of polling for better performance
     
     // Just do initial call, no polling
     this.getTrips().then(callback).catch(error => {

@@ -36,11 +36,11 @@ const TripManager: React.FC<TripManagerProps> = ({
   const loadTrips = async () => {
     setIsLoading(true);
     try {
-      console.log('Loading trips from storage service...');
+      console.log('🎢 Loading trips from storage service...');
       const savedTrips = await storageService.getTrips();
       setTrips(savedTrips);
       setIsCloudConnected(isCloudStorageConfigured());
-      console.log(`Loaded ${savedTrips.length} trips successfully`);
+      console.log(`🎉 Loaded ${savedTrips.length} trips successfully`);
     } catch (error) {
       console.error('Failed to load trips:', error);
       setTrips([]);

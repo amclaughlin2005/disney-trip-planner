@@ -35,7 +35,7 @@ const callSecureAPI = async (action: string, data: any) => {
   }
 };
 
-console.log('OpenAI service initialized with secure API proxy');
+console.log('🤖 OpenAI service initialized with secure API proxy');
 
 export interface AIService {
   generateItinerarySuggestions: (trip: Trip, preferences: ItineraryPreferences) => Promise<string>;

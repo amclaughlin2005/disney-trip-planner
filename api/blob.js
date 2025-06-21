@@ -29,12 +29,8 @@ module.exports = async function handler(req, res) {
     const { method, query } = req;
     const { action, deviceId, tripId } = query;
 
-    // Debug logging
-    console.log('API Route called:', { method, action, deviceId, tripId });
-    console.log('Environment check:', {
-      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-      tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined'
-    });
+    // API endpoint accessed
+    console.log(`🔗 Blob API: ${method} ${action}${deviceId ? ' for device ' + deviceId.substring(0, 12) + '...' : ''}`);
 
     switch (method) {
       case 'GET':
@@ -46,10 +42,8 @@ module.exports = async function handler(req, res) {
           }
 
           const prefix = deviceId ? `trips/${deviceId}/` : 'trips/';
-          console.log('Listing blobs with prefix:', prefix);
-          
           const { blobs } = await list({ prefix });
-          console.log('Found blobs:', blobs.length);
+          console.log(`📋 Found ${blobs.length} trip(s) in storage`);
           
           // Convert blobs to trip data
           const trips = [];
@@ -75,7 +69,7 @@ module.exports = async function handler(req, res) {
             return bTime - aTime;
           });
           
-          console.log('Returning trips:', trips.length);
+          console.log(`✅ Returning ${trips.length} trip(s) to client`);
           res.status(200).json({ trips });
         } else {
           res.status(400).json({ error: 'Invalid action' });
@@ -84,9 +78,7 @@ module.exports = async function handler(req, res) {
 
       case 'POST':
         if (action === 'save') {
-          console.log('Processing save request...');
-          console.log('Request body type:', typeof req.body);
-          console.log('Request body present:', !!req.body);
+          console.log('💾 Processing trip save request...');
           
           // Parse request body
           let bodyText = '';
@@ -95,30 +87,25 @@ module.exports = async function handler(req, res) {
           try {
             if (req.body) {
               bodyText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-              console.log('Body from req.body, length:', bodyText.length);
             } else {
               // Read from stream if body is not parsed
-              console.log('Reading body from stream...');
               const chunks = [];
               for await (const chunk of req) {
                 chunks.push(chunk);
               }
               bodyText = Buffer.concat(chunks).toString();
-              console.log('Body from stream, length:', bodyText.length);
             }
             
-            console.log('Parsing JSON...');
             trip = JSON.parse(bodyText);
-            console.log('Trip parsed successfully, ID:', trip.id, 'Name:', trip.name);
+            console.log(`📝 Parsed trip: "${trip.name}" (ID: ${trip.id})`);
             
-          } catch (parseError) {
-            console.error('JSON parse error:', parseError);
-            console.error('Body text preview:', bodyText.substring(0, 200));
-            return res.status(400).json({ 
-              error: 'Invalid JSON in request body',
-              details: parseError.message 
-            });
-          }
+                      } catch (parseError) {
+              console.error('❌ JSON parse error:', parseError.message);
+              return res.status(400).json({ 
+                error: 'Invalid JSON in request body',
+                details: parseError.message 
+              });
+            }
           
           try {
             const tripData = {
@@ -129,22 +116,21 @@ module.exports = async function handler(req, res) {
             };
             
             const blobName = `trips/${deviceId}/${trip.id}.json`;
-            console.log('Saving to blob:', blobName);
             
             const blob = await put(blobName, JSON.stringify(tripData), {
               access: 'public'
             });
             
-            console.log('Save successful:', blob.url);
+            console.log(`✅ Trip saved successfully to blob storage`);
             res.status(200).json({ success: true, url: blob.url });
             
-          } catch (saveError) {
-            console.error('Blob save error:', saveError);
-            return res.status(500).json({ 
-              error: 'Failed to save to blob storage',
-              details: saveError.message 
-            });
-          }
+                      } catch (saveError) {
+              console.error('❌ Failed to save to blob storage:', saveError.message);
+              return res.status(500).json({ 
+                error: 'Failed to save to blob storage',
+                details: saveError.message 
+              });
+            }
         } else {
           res.status(400).json({ error: 'Invalid action' });
         }
@@ -164,11 +150,10 @@ module.exports = async function handler(req, res) {
         res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    console.error('Blob API error:', error);
-    console.error('Error stack:', error.stack);
+    console.error('❌ Blob API error:', error.message);
     res.status(500).json({ 
       error: error.message,
-      details: error.stack?.split('\n').slice(0, 3).join('\n') // First 3 lines of stack
+      details: 'Internal server error'
     });
   }
 } 
