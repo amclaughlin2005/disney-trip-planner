@@ -83,6 +83,9 @@ export interface Trip {
   days: TripDay[];
   createdAt: string;
   updatedAt: string;
+  accountId: string;
+  createdBy: string;
+  isPublic?: boolean;
 }
 
 export interface Resort {
@@ -177,4 +180,79 @@ export const RESORTS: Resort[] = [
   { id: 'swan-reserve', name: 'Walt Disney World Swan Reserve', category: 'other', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
   { id: 'shades-of-green', name: 'Shades of Green', category: 'other', location: 'Magic Kingdom Area', transportation: ['bus'] },
   { id: 'off-property', name: 'Off-Property Hotel', category: 'other', location: 'Various', transportation: ['rental', 'uber', 'lyft'] },
-]; 
+];
+
+// Authentication and User Management Types
+export interface UserAccount {
+  id: string;
+  name: string;
+  ownerId: string; // Clerk user ID of account owner
+  billingEmail?: string;
+  subscriptionStatus?: 'active' | 'canceled' | 'trial';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountUser {
+  id: string;
+  accountId: string;
+  userId: string; // Clerk user ID
+  email: string;
+  name: string;
+  role: 'owner' | 'admin' | 'editor' | 'viewer';
+  permissions: UserPermission[];
+  invitedBy: string; // Clerk user ID
+  joinedAt: string;
+  lastActive?: string;
+}
+
+export interface UserPermission {
+  resource: 'trips' | 'users' | 'billing' | 'settings';
+  actions: ('create' | 'read' | 'update' | 'delete')[];
+}
+
+export interface AppUser {
+  clerkId: string;
+  email: string;
+  name: string;
+  isSuperAdmin: boolean;
+  accountId?: string;
+  role?: 'owner' | 'admin' | 'editor' | 'viewer';
+  createdAt: string;
+  lastLogin?: string;
+}
+
+// Role definitions for easy reference
+export const USER_ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  ACCOUNT_OWNER: 'owner',
+  ACCOUNT_ADMIN: 'admin',
+  ACCOUNT_EDITOR: 'editor',
+  ACCOUNT_VIEWER: 'viewer'
+} as const;
+
+export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+
+// Permission definitions
+export const PERMISSIONS = {
+  TRIPS: {
+    CREATE: 'trips:create',
+    READ: 'trips:read', 
+    UPDATE: 'trips:update',
+    DELETE: 'trips:delete'
+  },
+  USERS: {
+    CREATE: 'users:create',
+    READ: 'users:read',
+    UPDATE: 'users:update', 
+    DELETE: 'users:delete'
+  },
+  BILLING: {
+    READ: 'billing:read',
+    UPDATE: 'billing:update'
+  },
+  SETTINGS: {
+    READ: 'settings:read',
+    UPDATE: 'settings:update'
+  }
+} as const; 

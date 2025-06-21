@@ -4,6 +4,7 @@
   "description": "A comprehensive Disney trip planning web application",
   "private": true,
   "dependencies": {
+    "@clerk/clerk-react": "^5.32.0",
     "@types/node": "^18.15.0",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
