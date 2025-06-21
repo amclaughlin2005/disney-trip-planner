@@ -27,7 +27,7 @@ function App() {
     }
   }, [currentTrip]);
 
-  // Save trip data whenever it changes
+  // Save trip data whenever trip days change (but not when currentTrip changes)
   useEffect(() => {
     if (currentTrip && tripDays.length > 0) {
       const updatedTrip = {
@@ -35,9 +35,8 @@ function App() {
         days: tripDays,
       };
       storageService.saveTrip(updatedTrip).catch(console.error);
-      setCurrentTrip(updatedTrip);
     }
-  }, [tripDays, currentTrip]);
+  }, [tripDays]); // Only depend on tripDays, not currentTrip
 
   const handleTripSelect = (trip: Trip) => {
     setCurrentTrip(trip);

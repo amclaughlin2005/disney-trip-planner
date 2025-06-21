@@ -93,11 +93,13 @@ export const vercelBlobStorage: CloudStorageService = {
         error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
         error.message.includes('Failed to fetch') ||
         error.message.includes('Network request failed') ||
-        error.message.includes('CORS')
+        error.message.includes('CORS') ||
+        error.message.includes('TypeError')
       )) {
         console.log('Network error during save, falling back to local storage');
         const { saveTrip } = await import('./tripStorage');
         saveTrip(trip);
+        // Mark this as successful to prevent retries
         return;
       }
       throw new Error(`Failed to save trip to cloud storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
