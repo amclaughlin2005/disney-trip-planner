@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Crown } from 'lucide-react';
+import { Crown, Calendar, Plus, List, Grid, Bot } from 'lucide-react';
+import { format } from 'date-fns';
 import AuthWrapper from './components/AuthWrapper';
 import TripManager from './components/TripManager';
+import TripDayCard from './components/TripDayCard';
+import AddDayModal from './components/AddDayModal';
+import AgendaView from './components/AgendaView';
+import AIAssistant from './components/AIAssistant';
 import { AdminPanel } from './components/AdminPanel';
 import AccountSetup from './components/AccountSetup';
 import { useUserManagement } from './hooks/useUserManagement';
-import { Trip } from './types';
+import { storageService } from './utils/cloudStorage';
+import { Trip, TripDay, Park } from './types';
 import './index.css';
 
 // Main App Component (Trip Planning Interface)
@@ -22,6 +28,10 @@ const MainApp: React.FC = () => {
   } = useUserManagement();
 
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
+  const [tripDays, setTripDays] = useState<TripDay[]>([]);
+  const [showAddDayModal, setShowAddDayModal] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [viewMode, setViewMode] = useState<'detailed' | 'agenda'>('detailed');
   const navigate = useNavigate();
 
   // Debug logging
@@ -32,6 +42,31 @@ const MainApp: React.FC = () => {
       console.log('Debug - appUser.email:', appUser.email);
     }
   }, [appUser]);
+
+  // Update trip days when current trip changes
+  useEffect(() => {
+    if (currentTrip) {
+      setTripDays(currentTrip.days);
+    } else {
+      setTripDays([]);
+    }
+  }, [currentTrip]);
+
+  // Save trip data whenever trip days change
+  useEffect(() => {
+    if (currentTrip && tripDays.length >= 0) {
+      const updatedTrip = {
+        ...currentTrip,
+        days: tripDays,
+      };
+      
+      // Update the current trip state
+      setCurrentTrip(updatedTrip);
+      
+      // Save to storage
+      storageService.saveTrip(updatedTrip).catch(console.error);
+    }
+  }, [tripDays, currentTrip?.id]); // Only depend on tripDays and trip ID to avoid infinite loops
 
   // Show account setup if user exists but no app user profile
   if (clerkUser && !appUser) {
@@ -129,6 +164,31 @@ const MainApp: React.FC = () => {
     setCurrentTrip(trip);
   };
 
+  const handleAddDay = (date: Date, park: Park | null) => {
+    const newDay: TripDay = {
+      id: `day-${Date.now()}`,
+      date: format(date, 'yyyy-MM-dd'),
+      park,
+      transportation: [],
+      rides: [],
+      reservations: [],
+      food: [],
+    };
+    
+    setTripDays(prev => [...prev, newDay].sort((a, b) => a.date.localeCompare(b.date)));
+    setShowAddDayModal(false);
+  };
+
+  const handleUpdateDay = (dayId: string, updates: Partial<TripDay>) => {
+    setTripDays(prev => prev.map(day => day.id === dayId ? { ...day, ...updates } : day));
+  };
+
+  const handleDeleteDay = (dayId: string) => {
+    if (window.confirm('Are you sure you want to delete this day?')) {
+      setTripDays(prev => prev.filter(day => day.id !== dayId));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       {/* Impersonation Banner */}
@@ -168,12 +228,143 @@ const MainApp: React.FC = () => {
       </div>
       
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <TripManager
           currentTrip={currentTrip}
           onTripSelect={handleTripSelect}
           onTripCreate={handleTripCreate}
         />
+
+        {/* Trip Planning Interface */}
+        {currentTrip && (
+          <>
+            {/* Trip Summary */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">{currentTrip.name}</h2>
+                  <p className="text-gray-600">
+                    {format(new Date(currentTrip.startDate), 'MMM d, yyyy')} - {format(new Date(currentTrip.endDate), 'MMM d, yyyy')}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2 mt-4 sm:mt-0">
+                  <button
+                    onClick={() => setShowAddDayModal(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    <Plus size={16} />
+                    <span>Add Day</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowAIAssistant(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-disney-purple text-white rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    <Bot size={16} />
+                    <span>AI Assistant</span>
+                  </button>
+
+                  <div className="flex rounded-lg overflow-hidden border border-gray-300">
+                    <button
+                      onClick={() => setViewMode('detailed')}
+                      className={`flex items-center space-x-1 px-3 py-2 text-sm ${
+                        viewMode === 'detailed' 
+                          ? 'bg-disney-blue text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Grid size={14} />
+                      <span>Detailed</span>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('agenda')}
+                      className={`flex items-center space-x-1 px-3 py-2 text-sm ${
+                        viewMode === 'agenda' 
+                          ? 'bg-disney-blue text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <List size={14} />
+                      <span>Agenda</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trip Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-disney-blue">{tripDays.length}</div>
+                  <div className="text-sm text-gray-600">Days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-disney-green">
+                    {tripDays.reduce((sum, day) => sum + day.rides.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Rides</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-disney-purple">
+                    {tripDays.reduce((sum, day) => sum + day.reservations.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Reservations</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-disney-orange">
+                    {tripDays.reduce((sum, day) => sum + day.food.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Dining</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Trip Content */}
+            {viewMode === 'detailed' ? (
+              <div className="space-y-6">
+                {tripDays.map((day) => (
+                  <TripDayCard
+                    key={day.id}
+                    day={day}
+                    onUpdate={(updates: Partial<TripDay>) => handleUpdateDay(day.id, updates)}
+                    onDelete={() => handleDeleteDay(day.id)}
+                  />
+                ))}
+                {tripDays.length === 0 && (
+                  <div className="text-center py-12 bg-white rounded-lg shadow">
+                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No days planned yet</h3>
+                    <p className="text-gray-600 mb-4">Start planning your magical Disney vacation!</p>
+                    <button
+                      onClick={() => setShowAddDayModal(true)}
+                      className="inline-flex items-center space-x-2 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      <Plus size={16} />
+                      <span>Add Your First Day</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <AgendaView days={tripDays} />
+            )}
+
+            {/* Modals */}
+            {showAddDayModal && (
+              <AddDayModal
+                onAdd={handleAddDay}
+                onClose={() => setShowAddDayModal(false)}
+                existingDates={tripDays.map(day => new Date(day.date + 'T00:00:00'))}
+              />
+            )}
+
+            {showAIAssistant && (
+              <AIAssistant
+                currentTrip={currentTrip}
+                onClose={() => setShowAIAssistant(false)}
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
