@@ -11,6 +11,7 @@ import AgendaView from './components/AgendaView';
 import AIAssistant from './components/AIAssistant';
 import { AdminPanel } from './components/AdminPanel';
 import AccountSetup from './components/AccountSetup';
+import WelcomeNewUser from './components/WelcomeNewUser';
 import { useUserManagement } from './hooks/useUserManagement';
 import { storageService } from './utils/cloudStorage';
 import { Trip, TripDay, Park } from './types';
@@ -22,6 +23,7 @@ const MainApp: React.FC = () => {
   const { 
     appUser, 
     userAccount, 
+    loading,
     isImpersonating,
     impersonatedUser,
     impersonatedAccount
@@ -52,13 +54,25 @@ const MainApp: React.FC = () => {
     }
   }, [currentTrip]);
 
-  // Show account setup if user exists but no app user profile
-  if (clerkUser && !appUser) {
-    return <AccountSetup />;
+  // Show loading state while user data is being initialized
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-disney-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Setting up your Disney Trip Planner...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Show message if user doesn't have access to any account
-  if (appUser && !userAccount && !isImpersonating) {
+  // Show welcome screen for new users who don't have an account yet (fallback case)
+  if (clerkUser && appUser && !userAccount && !appUser.isSuperAdmin) {
+    return <WelcomeNewUser />;
+  }
+
+  // Show message if user doesn't have access to any account and is not a super admin
+  if (appUser && !userAccount && !isImpersonating && !appUser.isSuperAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">

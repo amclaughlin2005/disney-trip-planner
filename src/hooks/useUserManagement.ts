@@ -5,6 +5,24 @@ import { AppUser, UserAccount } from '../types';
 // Replace with your actual super admin email
 const SUPER_ADMIN_EMAIL = 'amclaughlin2005@gmail.com';
 
+// Helper function to generate a friendly default account name
+const generateDefaultAccountName = (userName: string): string => {
+  if (!userName || userName === 'Unknown') {
+    return 'My Disney Trips';
+  }
+  
+  // Remove email domain if the name looks like an email
+  const cleanName = userName.includes('@') ? userName.split('@')[0] : userName;
+  
+  // Handle names gracefully
+  const name = cleanName.trim();
+  if (name.toLowerCase().endsWith('s')) {
+    return `${name}' Disney Adventures`;
+  } else {
+    return `${name}'s Disney Adventures`;
+  }
+};
+
 export const useUserManagement = () => {
   const { user, isLoaded } = useUser();
   const [appUser, setAppUser] = useState<AppUser | null>(null);
@@ -44,6 +62,13 @@ export const useUserManagement = () => {
           lastLogin: new Date().toISOString(),
           status: 'active'
         });
+
+        // For new users (not super admins), automatically create a personal account
+        if (!existingUser.isSuperAdmin) {
+          const defaultAccountName = generateDefaultAccountName(existingUser.name);
+          const newAccount = await createUserAccount(defaultAccountName, existingUser);
+          console.log(`Auto-created account for new user: ${newAccount.name}`);
+        }
       } else {
         // Update last login
         existingUser.lastLogin = new Date().toISOString();
@@ -229,14 +254,18 @@ export const useUserManagement = () => {
     return accounts.find((a: UserAccount) => a.id === accountId) || null;
   };
 
-  const createUserAccount = async (accountName: string): Promise<UserAccount> => {
-    if (!user || !appUser) throw new Error('User not authenticated');
+  const createUserAccount = async (accountName: string, targetUser?: AppUser): Promise<UserAccount> => {
+    if (!user) throw new Error('User not authenticated');
+    
+    // Use provided user or current appUser
+    const accountUser = targetUser || appUser;
+    if (!accountUser) throw new Error('No user available for account creation');
 
     const accounts = JSON.parse(localStorage.getItem('admin-accounts') || '[]');
     const newAccount: UserAccount = {
       id: `account-${Date.now()}`,
       name: accountName,
-      ownerId: user.id,
+      ownerId: accountUser.clerkId,
       subscriptionStatus: 'trial',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -247,14 +276,18 @@ export const useUserManagement = () => {
 
     // Update user to be owner of this account
     const updatedUser: AppUser = {
-      ...appUser,
+      ...accountUser,
       accountId: newAccount.id,
       role: 'owner'
     };
 
     await updateAppUser(updatedUser);
-    setAppUser(updatedUser);
-    setUserAccount(newAccount);
+    
+    // Only update local state if this is the current user
+    if (accountUser.clerkId === appUser?.clerkId) {
+      setAppUser(updatedUser);
+      setUserAccount(newAccount);
+    }
 
     return newAccount;
   };

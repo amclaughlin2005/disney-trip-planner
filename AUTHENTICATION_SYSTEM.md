@@ -146,10 +146,11 @@ App state determines routing:
 1. **Clerk Authentication**: User signs in via Clerk
 2. **App User Creation**: Automatic `AppUser` record creation
 3. **Super Admin Check**: Email-based super admin detection
-4. **Account Assignment**: 
-   - Super admins: No account required
-   - Regular users: Must be assigned to account or create new one
-5. **Permission Setup**: Role-based permissions assigned
+4. **Automatic Account Creation**: 
+   - Super admins: No account required, can access admin panel directly
+   - Regular users: Automatically get a personal account created with ownership privileges
+   - Account named intelligently (e.g., "John's Disney Adventures", "My Disney Trips")
+5. **Permission Setup**: Role-based permissions assigned with owner privileges for personal accounts
 
 #### **User Assignment Workflow**
 ```typescript
