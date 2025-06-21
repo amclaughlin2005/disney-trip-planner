@@ -107,6 +107,17 @@ export const vercelBlobStorage: CloudStorageService = {
       console.log('Trip saved to Vercel Blob:', trip.id, blob.url);
     } catch (error) {
       console.error('Error saving trip to Vercel Blob:', error);
+      // If we get network errors, fall back to local storage
+      if (error instanceof Error && (
+        error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('Network request failed')
+      )) {
+        console.log('Network error during save, falling back to local storage');
+        const { saveTrip } = await import('./tripStorage');
+        saveTrip(trip);
+        return;
+      }
       throw new Error(`Failed to save trip to cloud storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
@@ -159,6 +170,17 @@ export const vercelBlobStorage: CloudStorageService = {
       return trips;
     } catch (error) {
       console.error('Error loading trips from Vercel Blob:', error);
+      // If we get ERR_INSUFFICIENT_RESOURCES or similar network errors, 
+      // fall back to local storage to prevent infinite loops
+      if (error instanceof Error && (
+        error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('Network request failed')
+      )) {
+        console.log('Network error detected, falling back to local storage');
+        const { getTrips } = await import('./tripStorage');
+        return getTrips();
+      }
       throw new Error(`Failed to load trips from cloud storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
@@ -218,30 +240,20 @@ export const vercelBlobStorage: CloudStorageService = {
 
   subscribeToTrips(callback: (trips: Trip[]) => void): Unsubscribe {
     // Vercel Blob doesn't have real-time subscriptions like Firestore
-    // We'll implement a polling mechanism
-    let intervalId: NodeJS.Timeout;
+    // Temporarily disabled polling to prevent error loops
+    console.log('Vercel Blob polling disabled to prevent error loops');
     
-    const pollTrips = async () => {
-      try {
-        const trips = await this.getTrips();
-        callback(trips);
-      } catch (error) {
-        console.error('Error in trips polling:', error);
-      }
-    };
+    // Just do initial call, no polling
+    this.getTrips().then(callback).catch(error => {
+      console.error('Error in initial trips load:', error);
+      // Fall back to local storage on error
+      import('./tripStorage').then(({ getTrips }) => {
+        callback(getTrips());
+      });
+    });
     
-    // Initial call
-    pollTrips();
-    
-    // Poll every 30 seconds
-    intervalId = setInterval(pollTrips, 30000);
-    
-    // Return unsubscribe function
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+    // Return no-op unsubscribe function
+    return () => {};
   }
 };
 
