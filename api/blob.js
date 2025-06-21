@@ -1,6 +1,6 @@
-import { put, list, del } from '@vercel/blob';
+const { put, list, del } = require('@vercel/blob');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -12,23 +12,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { method, query, body } = req;
+    const { method, query } = req;
     const { action, deviceId, tripId } = query;
+
+    // Debug logging
+    console.log('API Route called:', { method, action, deviceId, tripId });
+    console.log('Environment check:', {
+      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
+      tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined'
+    });
 
     switch (method) {
       case 'GET':
         if (action === 'list') {
+          // Check if we have the blob token
+          if (!process.env.BLOB_READ_WRITE_TOKEN) {
+            console.error('BLOB_READ_WRITE_TOKEN not found');
+            return res.status(500).json({ error: 'Blob storage not configured' });
+          }
+
           const prefix = deviceId ? `trips/${deviceId}/` : 'trips/';
+          console.log('Listing blobs with prefix:', prefix);
+          
           const { blobs } = await list({ prefix });
+          console.log('Found blobs:', blobs.length);
           
           // Convert blobs to trip data
           const trips = [];
           for (const blob of blobs) {
             try {
+              console.log('Fetching blob:', blob.pathname);
               const response = await fetch(blob.url);
               if (response.ok) {
                 const tripData = await response.json();
                 trips.push(tripData);
+              } else {
+                console.error('Failed to fetch blob:', blob.pathname, response.status);
               }
             } catch (error) {
               console.error('Error fetching trip blob:', blob.pathname, error);
@@ -42,6 +61,7 @@ export default async function handler(req, res) {
             return bTime - aTime;
           });
           
+          console.log('Returning trips:', trips.length);
           res.status(200).json({ trips });
         } else {
           res.status(400).json({ error: 'Invalid action' });
@@ -50,7 +70,20 @@ export default async function handler(req, res) {
 
       case 'POST':
         if (action === 'save') {
-          const trip = JSON.parse(body);
+          // Parse request body
+          let bodyText = '';
+          if (req.body) {
+            bodyText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+          } else {
+            // Read from stream if body is not parsed
+            const chunks = [];
+            for await (const chunk of req) {
+              chunks.push(chunk);
+            }
+            bodyText = Buffer.concat(chunks).toString();
+          }
+          
+          const trip = JSON.parse(bodyText);
           const tripData = {
             ...trip,
             deviceId,
@@ -84,6 +117,10 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error('Blob API error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message,
+      details: error.stack?.split('\n').slice(0, 3).join('\n') // First 3 lines of stack
+    });
   }
 } 
