@@ -1,9 +1,41 @@
 import { Trip, TripDay } from '../types';
 
+// AI Prompt interface matching the admin panel
+interface AIPrompt {
+  id: string;
+  name: string;
+  description: string;
+  systemMessage: string;
+  userPromptTemplate: string;
+  category: 'itinerary' | 'optimization' | 'dining' | 'rides' | 'summary';
+  maxTokens: number;
+  lastModified: string;
+}
+
 // Check if we're in development mode and can make API calls
 const isOpenAIConfigured = (): boolean => {
   // Always return true since we'll use our secure API route
   return true;
+};
+
+// Get current prompts from localStorage (from admin panel)
+const getCurrentPrompts = (): AIPrompt[] => {
+  try {
+    const saved = localStorage.getItem('ai-prompts');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Error loading prompts from localStorage:', error);
+  }
+  // Return empty array if no prompts found - API will use defaults
+  return [];
+};
+
+// Get specific prompt by category
+const getPromptByCategory = (category: AIPrompt['category']): AIPrompt | null => {
+  const prompts = getCurrentPrompts();
+  return prompts.find(p => p.category === category) || null;
 };
 
 // Helper function to make secure API calls to our backend
@@ -93,7 +125,8 @@ export interface RideSuggestion {
 export const openAIService: AIService = {
   async generateItinerarySuggestions(trip: Trip, preferences: ItineraryPreferences): Promise<string> {
     try {
-      const response = await callSecureAPI('generateItinerarySuggestions', { trip, preferences });
+      const prompt = getPromptByCategory('itinerary');
+      const response = await callSecureAPI('generateItinerarySuggestions', { trip, preferences, prompt });
       return response.result || 'Unable to generate suggestions at this time.';
     } catch (error) {
       console.error('OpenAI API error:', error);
@@ -103,7 +136,8 @@ export const openAIService: AIService = {
 
   async optimizeDayPlan(day: TripDay, preferences: OptimizationPreferences): Promise<DayOptimization> {
     try {
-      const response = await callSecureAPI('optimizeDayPlan', { day, preferences });
+      const prompt = getPromptByCategory('optimization');
+      const response = await callSecureAPI('optimizeDayPlan', { day, preferences, prompt });
       return response.result;
     } catch (error) {
       console.error('OpenAI API error:', error);
@@ -113,7 +147,8 @@ export const openAIService: AIService = {
 
   async suggestDining(preferences: DiningPreferences): Promise<DiningSuggestion[]> {
     try {
-      const response = await callSecureAPI('suggestDining', { preferences });
+      const prompt = getPromptByCategory('dining');
+      const response = await callSecureAPI('suggestDining', { preferences, prompt });
       return response.result;
     } catch (error) {
       console.error('OpenAI API error:', error);
@@ -123,7 +158,8 @@ export const openAIService: AIService = {
 
   async suggestRides(preferences: RidePreferences): Promise<RideSuggestion[]> {
     try {
-      const response = await callSecureAPI('suggestRides', { preferences });
+      const prompt = getPromptByCategory('rides');
+      const response = await callSecureAPI('suggestRides', { preferences, prompt });
       return response.result;
     } catch (error) {
       console.error('OpenAI API error:', error);
@@ -133,7 +169,8 @@ export const openAIService: AIService = {
 
   async generateTripSummary(trip: Trip): Promise<string> {
     try {
-      const response = await callSecureAPI('generateTripSummary', { trip });
+      const prompt = getPromptByCategory('summary');
+      const response = await callSecureAPI('generateTripSummary', { trip, prompt });
       return response.result || 'Your Disney trip is going to be magical!';
     } catch (error) {
       console.error('OpenAI API error:', error);

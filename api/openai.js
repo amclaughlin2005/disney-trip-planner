@@ -48,9 +48,11 @@ module.exports = async function handler(req, res) {
 
 async function handleItinerarySuggestions(req, res, data) {
   try {
-    const { trip, preferences } = data;
+    const { trip, preferences, prompt } = data;
     
-    const prompt = `Create a personalized Disney trip itinerary suggestion for:
+    // Use custom prompt if provided, otherwise fall back to default
+    let systemMessage = 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.';
+    let userPromptTemplate = `Create a personalized Disney trip itinerary suggestion for:
       
 Trip Details:
 - Duration: ${trip.days.length} days
@@ -74,19 +76,42 @@ Please provide:
 
 Keep it practical and actionable, focusing on real Disney World experiences.`;
 
+    // Use custom prompt if provided
+    if (prompt && prompt.systemMessage) {
+      systemMessage = prompt.systemMessage;
+    }
+    if (prompt && prompt.userPromptTemplate) {
+      userPromptTemplate = prompt.userPromptTemplate;
+    }
+
+    // Replace template variables in user prompt
+    const finalUserPrompt = userPromptTemplate
+      .replace(/\{\{trip\.days\.length\}\}/g, trip.days.length)
+      .replace(/\{\{trip\.resort\?\.name \|\| 'Not specified'\}\}/g, trip.resort?.name || 'Not specified')
+      .replace(/\{\{trip\.startDate\}\}/g, trip.startDate)
+      .replace(/\{\{trip\.endDate\}\}/g, trip.endDate)
+      .replace(/\{\{preferences\.groupSize\}\}/g, preferences.groupSize)
+      .replace(/\{\{preferences\.ages\.join\(', '\)\}\}/g, preferences.ages.join(', '))
+      .replace(/\{\{preferences\.interests\.join\(', '\)\}\}/g, preferences.interests.join(', '))
+      .replace(/\{\{preferences\.budget\}\}/g, preferences.budget)
+      .replace(/\{\{preferences\.mobility\}\}/g, preferences.mobility)
+      .replace(/\{\{preferences\.thrillLevel\}\}/g, preferences.thrillLevel);
+
+    const maxTokens = prompt?.maxTokens || 1000;
+
     const response = await openai.chat.completions.create({
       model: 'o3-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.'
+          content: systemMessage
         },
         {
           role: 'user',
-          content: prompt
+          content: finalUserPrompt
         }
       ],
-      max_completion_tokens: 1000
+      max_completion_tokens: maxTokens
     });
 
     return res.json({ 
@@ -102,7 +127,7 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
 
 async function handleDayOptimization(req, res, data) {
   try {
-    const { day, preferences } = data;
+    const { day, preferences, prompt } = data;
     
     const activities = [
       ...day.rides.map(r => `Ride: ${r.name}`),
@@ -169,9 +194,11 @@ Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
 
 async function handleDiningSuggestions(req, res, data) {
   try {
-    const { preferences } = data;
+    const { preferences, prompt } = data;
     
-    const prompt = `Suggest Disney World dining options for:
+    // Use custom prompt if provided, otherwise fall back to default
+    let systemMessage = 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.';
+    let userPromptTemplate = `Suggest Disney World dining options for:
       
 Preferences:
 - Park: ${preferences.park || 'Any park'}
@@ -183,19 +210,38 @@ Preferences:
 
 Provide 3-5 specific restaurant recommendations with reasons why they fit the criteria.`;
 
+    // Use custom prompt if provided
+    if (prompt && prompt.systemMessage) {
+      systemMessage = prompt.systemMessage;
+    }
+    if (prompt && prompt.userPromptTemplate) {
+      userPromptTemplate = prompt.userPromptTemplate;
+    }
+
+    // Replace template variables in user prompt
+    const finalUserPrompt = userPromptTemplate
+      .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences.park || 'Any park')
+      .replace(/\{\{preferences\.mealType\}\}/g, preferences.mealType)
+      .replace(/\{\{preferences\.budget\}\}/g, preferences.budget)
+      .replace(/\{\{preferences\.dietaryRestrictions\?\.join\(', '\) \|\| 'None'\}\}/g, preferences.dietaryRestrictions?.join(', ') || 'None')
+      .replace(/\{\{preferences\.groupSize\}\}/g, preferences.groupSize)
+      .replace(/\{\{preferences\.specialOccasion \|\| 'None'\}\}/g, preferences.specialOccasion || 'None');
+
+    const maxTokens = prompt?.maxTokens || 600;
+
     const response = await openai.chat.completions.create({
       model: 'o3-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.'
+          content: systemMessage
         },
         {
           role: 'user',
-          content: prompt
+          content: finalUserPrompt
         }
       ],
-      max_completion_tokens: 600
+      max_completion_tokens: maxTokens
     });
 
     const content = response.choices[0]?.message?.content || '';
