@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Crown } from 'lucide-react';
 import AuthWrapper from './components/AuthWrapper';
@@ -22,6 +22,7 @@ const MainApp: React.FC = () => {
   } = useUserManagement();
 
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
+  const navigate = useNavigate();
 
   // Show account setup if user exists but no app user profile
   if (clerkUser && !appUser) {
@@ -48,7 +49,7 @@ const MainApp: React.FC = () => {
           {/* Admin Panel Access for Super Admins */}
           {appUser.isSuperAdmin && (
             <button
-              onClick={() => window.location.href = '/admin'}
+              onClick={() => navigate('/admin')}
               className="flex items-center justify-center space-x-2 w-full px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium"
             >
               <Crown className="h-5 w-5" />
