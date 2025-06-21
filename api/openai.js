@@ -230,6 +230,13 @@ Provide 3-5 specific restaurant recommendations with reasons why they fit the cr
 
     const maxTokens = customPrompt?.maxTokens || 600;
 
+    console.log('=== DINING SUGGESTIONS PROMPT DEBUG ===');
+    console.log('System Message:', systemMessage);
+    console.log('User Prompt:', finalUserPrompt);
+    console.log('Max Tokens:', maxTokens);
+    console.log('Custom Prompt Received:', customPrompt ? 'YES' : 'NO');
+    console.log('========================================');
+
     const response = await openai.chat.completions.create({
       model: 'o3-mini',
       messages: [
