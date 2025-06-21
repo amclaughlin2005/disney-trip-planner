@@ -285,7 +285,8 @@ export const AdminPanel: React.FC = () => {
   };
 
   const getUnassignedUsers = (): AppUser[] => {
-    return users.filter(u => !u.accountId && !u.isSuperAdmin);
+    // Include super admins in the assignment list so they can be assigned to accounts
+    return users.filter(u => !u.accountId);
   };
 
   const handleImpersonateUser = async (userId: string) => {
@@ -930,10 +931,15 @@ export const AdminPanel: React.FC = () => {
                     <option value="">Select a user</option>
                     {getUnassignedUsers().map(user => (
                       <option key={user.clerkId} value={user.clerkId}>
-                        {user.name}
+                        {user.name} {user.isSuperAdmin ? '(Super Admin)' : ''}
                       </option>
                     ))}
                   </select>
+                </div>
+                {/* Debug info */}
+                <div className="mt-1 text-xs text-gray-500">
+                  Available users: {getUnassignedUsers().length} 
+                  {getUnassignedUsers().length === 0 && ' (All users are already assigned to accounts)'}
                 </div>
               </div>
 
