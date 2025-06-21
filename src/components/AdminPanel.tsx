@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut, ArrowLeft } from 'lucide-react';
+import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut, ArrowLeft, MessageSquare, Save, RotateCcw } from 'lucide-react';
 import { AppUser, UserAccount } from '../types';
 import { useUserManagement } from '../hooks/useUserManagement';
 
@@ -22,6 +22,17 @@ interface AssignUserForm {
   role: string;
 }
 
+interface AIPrompt {
+  id: string;
+  name: string;
+  description: string;
+  systemMessage: string;
+  userPromptTemplate: string;
+  category: 'itinerary' | 'optimization' | 'dining' | 'rides' | 'summary';
+  maxTokens: number;
+  lastModified: string;
+}
+
 export const AdminPanel: React.FC = () => {
   const { user } = useUser();
   const {
@@ -40,7 +51,7 @@ export const AdminPanel: React.FC = () => {
   } = useUserManagement();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'impersonation' | 'settings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'impersonation' | 'prompts' | 'settings'>('users');
   const [users, setUsers] = useState<AppUser[]>([]);
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,9 +70,133 @@ export const AdminPanel: React.FC = () => {
   });
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [assignUserLoading, setAssignUserLoading] = useState(false);
+  
+  // Prompt management state
+  const [prompts, setPrompts] = useState<AIPrompt[]>([]);
+  const [selectedPrompt, setSelectedPrompt] = useState<AIPrompt | null>(null);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState<AIPrompt | null>(null);
 
   // Check if current user is super admin
   const isCurrentUserSuperAdmin = user?.primaryEmailAddress?.emailAddress === SUPER_ADMIN_EMAIL;
+
+  // Default AI prompts based on current implementation
+  const defaultPrompts: AIPrompt[] = [
+    {
+      id: 'itinerary-suggestions',
+      name: 'Trip Itinerary Suggestions',
+      description: 'Generates personalized Disney trip itinerary suggestions based on group preferences',
+      systemMessage: 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.',
+      userPromptTemplate: `Create a personalized Disney trip itinerary suggestion for:
+      
+Trip Details:
+- Duration: {{trip.days.length}} days
+- Resort: {{trip.resort?.name || 'Not specified'}}
+- Dates: {{trip.startDate}} to {{trip.endDate}}
+
+Group Preferences:
+- Group size: {{preferences.groupSize}}
+- Ages: {{preferences.ages.join(', ')}}
+- Interests: {{preferences.interests.join(', ')}}
+- Budget: {{preferences.budget}}
+- Mobility level: {{preferences.mobility}}
+- Thrill preference: {{preferences.thrillLevel}}
+
+Please provide:
+1. Recommended park order for each day
+2. Must-do attractions for this group
+3. Dining suggestions
+4. General tips and strategies
+5. Special considerations for the group's needs
+
+Keep it practical and actionable, focusing on real Disney World experiences.`,
+      category: 'itinerary',
+      maxTokens: 1000,
+      lastModified: new Date().toISOString()
+    },
+    {
+      id: 'day-optimization',
+      name: 'Day Plan Optimization',
+      description: 'Optimizes the order and timing of activities for a single park day',
+      systemMessage: 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.',
+      userPromptTemplate: `Optimize this Disney park day plan:
+
+Park: {{day.park?.name || 'Not specified'}}
+Current Activities: {{activities.join(', ')}}
+
+Optimization Preferences:
+- Priority: {{preferences.priority}}
+- Crowd tolerance: {{preferences.crowdTolerance}}
+- Walking preference: {{preferences.walkingDistance}}
+
+Please provide:
+1. Suggested order of activities
+2. Estimated time for each activity
+3. Practical tips for this day
+4. Potential issues or warnings
+
+Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`,
+      category: 'optimization',
+      maxTokens: 800,
+      lastModified: new Date().toISOString()
+    },
+    {
+      id: 'dining-suggestions',
+      name: 'Dining Recommendations',
+      description: 'Suggests Disney World dining options based on preferences and requirements',
+      systemMessage: 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.',
+      userPromptTemplate: `Suggest Disney World dining options for:
+      
+Preferences:
+- Park: {{preferences.park || 'Any park'}}
+- Meal type: {{preferences.mealType}}
+- Budget: {{preferences.budget}}
+- Dietary restrictions: {{preferences.dietaryRestrictions?.join(', ') || 'None'}}
+- Group size: {{preferences.groupSize}}
+- Special occasions: {{preferences.specialOccasion || 'None'}}
+
+Provide 3-5 specific restaurant recommendations with reasons why they fit the criteria.`,
+      category: 'dining',
+      maxTokens: 600,
+      lastModified: new Date().toISOString()
+    },
+    {
+      id: 'ride-suggestions',
+      name: 'Attraction Recommendations',
+      description: 'Recommends Disney World attractions based on group preferences and thrill levels',
+      systemMessage: 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.',
+      userPromptTemplate: `Suggest Disney World attractions for:
+      
+Preferences:
+- Park: {{preferences.park || 'Any park'}}
+- Thrill level: {{preferences.thrillLevel}}
+- Ages in group: {{preferences.ages?.join(', ') || 'Not specified'}}
+- Interests: {{preferences.interests?.join(', ') || 'General'}}
+- Time available: {{preferences.timeAvailable || 'Full day'}}
+
+Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`,
+      category: 'rides',
+      maxTokens: 600,
+      lastModified: new Date().toISOString()
+    },
+    {
+      id: 'trip-summary',
+      name: 'Trip Summary Generator',
+      description: 'Creates encouraging and helpful trip summaries highlighting what makes each trip special',
+      systemMessage: 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.',
+      userPromptTemplate: `Create a friendly trip summary for this Disney vacation:
+
+Trip: {{trip.name}}
+Duration: {{trip.days.length}} days
+Resort: {{trip.resort?.name || 'Not specified'}}
+Total planned activities: {{totalActivities}}
+
+Create an encouraging summary highlighting what makes this trip special and any tips for success.`,
+      category: 'summary',
+      maxTokens: 300,
+      lastModified: new Date().toISOString()
+    }
+  ];
 
   const loadAdminData = useCallback(async () => {
     setLoading(true);
@@ -73,6 +208,15 @@ export const AdminPanel: React.FC = () => {
       
       setUsers(usersData);
       setAccounts(accountsData);
+      
+      // Load prompts from localStorage or initialize with defaults
+      const savedPrompts = localStorage.getItem('ai-prompts');
+      if (savedPrompts) {
+        setPrompts(JSON.parse(savedPrompts));
+      } else {
+        setPrompts(defaultPrompts);
+        localStorage.setItem('ai-prompts', JSON.stringify(defaultPrompts));
+      }
     } catch (error) {
       console.error('Error loading admin data:', error);
     } finally {
@@ -310,6 +454,66 @@ export const AdminPanel: React.FC = () => {
     alert('Returned to your super admin context.');
   };
 
+  // Prompt management functions
+  const savePrompts = (updatedPrompts: AIPrompt[]) => {
+    localStorage.setItem('ai-prompts', JSON.stringify(updatedPrompts));
+    setPrompts(updatedPrompts);
+  };
+
+  const handleEditPrompt = (prompt: AIPrompt) => {
+    setEditingPrompt({ ...prompt });
+    setShowPromptEditor(true);
+  };
+
+  const handleSavePrompt = () => {
+    if (!editingPrompt) return;
+
+    const updatedPrompts = prompts.map(p => 
+      p.id === editingPrompt.id 
+        ? { ...editingPrompt, lastModified: new Date().toISOString() }
+        : p
+    );
+    
+    savePrompts(updatedPrompts);
+    setShowPromptEditor(false);
+    setEditingPrompt(null);
+    alert('Prompt saved successfully!');
+  };
+
+  const handleResetPrompt = (promptId: string) => {
+    if (window.confirm('Are you sure you want to reset this prompt to its default values? This cannot be undone.')) {
+      const defaultPrompt = defaultPrompts.find(p => p.id === promptId);
+      if (defaultPrompt) {
+        const updatedPrompts = prompts.map(p => 
+          p.id === promptId 
+            ? { ...defaultPrompt, lastModified: new Date().toISOString() }
+            : p
+        );
+        savePrompts(updatedPrompts);
+        alert('Prompt reset to default successfully!');
+      }
+    }
+  };
+
+  const handleResetAllPrompts = () => {
+    if (window.confirm('Are you sure you want to reset ALL prompts to their default values? This cannot be undone.')) {
+      const resetPrompts = defaultPrompts.map(p => ({ ...p, lastModified: new Date().toISOString() }));
+      savePrompts(resetPrompts);
+      alert('All prompts reset to defaults successfully!');
+    }
+  };
+
+  const getCategoryColor = (category: AIPrompt['category']) => {
+    switch (category) {
+      case 'itinerary': return 'bg-blue-100 text-blue-800';
+      case 'optimization': return 'bg-green-100 text-green-800';
+      case 'dining': return 'bg-orange-100 text-orange-800';
+      case 'rides': return 'bg-purple-100 text-purple-800';
+      case 'summary': return 'bg-pink-100 text-pink-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   if (!user) {
     return <div>Loading...</div>;
   }
@@ -382,6 +586,7 @@ export const AdminPanel: React.FC = () => {
             { id: 'users', label: 'Users', icon: Users },
             { id: 'accounts', label: 'Accounts', icon: Shield },
             { id: 'impersonation', label: 'Impersonation', icon: Eye },
+            { id: 'prompts', label: 'AI Prompts', icon: MessageSquare },
             { id: 'settings', label: 'Settings', icon: Settings }
           ].map(({ id, label, icon: Icon }) => (
             <button
@@ -738,6 +943,81 @@ export const AdminPanel: React.FC = () => {
              </div>
            )}
 
+          {/* AI Prompts Tab */}
+          {activeTab === 'prompts' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">AI Prompt Management</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Manage and customize AI prompts used throughout the application
+                  </p>
+                </div>
+                <button
+                  onClick={handleResetAllPrompts}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <RotateCcw size={16} />
+                  <span>Reset All to Defaults</span>
+                </button>
+              </div>
+
+              <div className="grid gap-6">
+                {prompts.map((prompt) => (
+                  <div key={prompt.id} className="bg-white shadow rounded-lg p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">{prompt.name}</h3>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(prompt.category)}`}>
+                            {prompt.category}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">{prompt.description}</p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          <span>Max Tokens: {prompt.maxTokens}</span>
+                          <span>Last Modified: {new Date(prompt.lastModified).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditPrompt(prompt)}
+                          className="flex items-center space-x-1 px-3 py-1 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                        >
+                          <Edit size={14} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleResetPrompt(prompt.id)}
+                          className="flex items-center space-x-1 px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                        >
+                          <RotateCcw size={14} />
+                          <span>Reset</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">System Message</h4>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-sm text-gray-700 font-mono">{prompt.systemMessage}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">User Prompt Template</h4>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <pre className="text-sm text-gray-700 font-mono whitespace-pre-wrap overflow-x-auto">{prompt.userPromptTemplate}</pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Settings Tab */}
           {activeTab === 'settings' && (
             <div>
@@ -997,6 +1277,140 @@ export const AdminPanel: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Prompt Editor Modal */}
+      {showPromptEditor && editingPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl mx-4 max-h-screen overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Edit AI Prompt: {editingPrompt.name}</h3>
+              <button
+                onClick={() => setShowPromptEditor(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Prompt Name
+                </label>
+                <input
+                  type="text"
+                  value={editingPrompt.name}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editingPrompt.description}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, description: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editingPrompt.category}
+                    onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value as AIPrompt['category'] })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                  >
+                    <option value="itinerary">Itinerary</option>
+                    <option value="optimization">Optimization</option>
+                    <option value="dining">Dining</option>
+                    <option value="rides">Rides</option>
+                    <option value="summary">Summary</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Max Tokens
+                  </label>
+                  <input
+                    type="number"
+                    min="100"
+                    max="2000"
+                    value={editingPrompt.maxTokens}
+                    onChange={(e) => setEditingPrompt({ ...editingPrompt, maxTokens: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  System Message
+                </label>
+                <textarea
+                  value={editingPrompt.systemMessage}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, systemMessage: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent font-mono text-sm"
+                  placeholder="Define the AI's role and expertise..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  User Prompt Template
+                </label>
+                <div className="text-xs text-gray-500 mb-2">
+                  Use {`{{variable}}`} syntax for dynamic values (e.g., {`{{trip.name}}`}, {`{{preferences.budget}}`})
+                </div>
+                <textarea
+                  value={editingPrompt.userPromptTemplate}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, userPromptTemplate: e.target.value })}
+                  rows={12}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent font-mono text-sm"
+                  placeholder="Enter the prompt template with {{variable}} placeholders..."
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <MessageSquare className="text-blue-500 mt-0.5" size={16} />
+                  <div className="ml-2">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> Changes to prompts will affect all future AI responses. 
+                      Use the template variable syntax {`{{variable}}`} to insert dynamic data from the application.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPromptEditor(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSavePrompt}
+                  className="flex-1 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Save size={16} />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
