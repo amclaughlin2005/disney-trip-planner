@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+const OpenAI = require('openai');
 
 // Initialize OpenAI with server-side environment variable (no REACT_APP_ prefix)
 const openai = new OpenAI({
@@ -10,7 +10,7 @@ if (!process.env.OPENAI_API_KEY) {
   console.error('OPENAI_API_KEY environment variable is not set');
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
