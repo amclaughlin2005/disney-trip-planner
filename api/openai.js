@@ -209,7 +209,12 @@ Preferences:
 - Group size: ${preferences.groupSize}
 - Special occasions: ${preferences.specialOccasion || 'None'}
 
-Provide 3-5 specific restaurant recommendations with reasons why they fit the criteria.`;
+Provide 3-5 specific restaurant recommendations. Format each recommendation as:
+
+**Restaurant Name**
+Location: [Park/Area]
+Why it fits: [Explanation of why this matches their preferences]
+---`;
 
     // Use custom prompt if provided
     if (customPrompt && customPrompt.systemMessage) {
@@ -257,23 +262,86 @@ Provide 3-5 specific restaurant recommendations with reasons why they fit the cr
     console.log('OpenAI Response Content:', content);
     console.log('OpenAI Full Response:', JSON.stringify(response, null, 2));
     
-    return res.json({
-      result: [
-        {
-          name: 'AI-Generated Suggestion',
+    // Try to parse the AI response into multiple recommendations
+    let parsedResults = [];
+    
+    try {
+      // First try to parse as JSON in case AI returns structured data
+      parsedResults = JSON.parse(content);
+      if (!Array.isArray(parsedResults)) {
+        parsedResults = [parsedResults];
+      }
+    } catch {
+      // If not JSON, try to parse the text response into multiple recommendations
+      const sections = content.split('---').filter(section => section.trim());
+      const recommendations = [];
+      
+      for (const section of sections) {
+        const lines = section.split('\n').filter(line => line.trim());
+        if (lines.length === 0) continue;
+        
+        let name = '';
+        let location = preferences?.park || 'Disney World';
+        let reason = '';
+        
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          
+          // Look for restaurant name (bold text or first substantial line)
+          if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+            name = trimmedLine.replace(/\*\*/g, '').trim();
+          } else if (trimmedLine.startsWith('Location:')) {
+            location = trimmedLine.replace('Location:', '').trim();
+          } else if (trimmedLine.startsWith('Why it fits:')) {
+            reason = trimmedLine.replace('Why it fits:', '').trim();
+          } else if (!name && trimmedLine.length > 0) {
+            // If no bold name found, use first non-empty line
+            name = trimmedLine.replace(/^\d+\.\s*|^[-*•]\s*/, '').trim();
+          } else if (name && !reason && trimmedLine.length > 0) {
+            // If we have a name but no reason, accumulate description
+            reason += (reason ? ' ' : '') + trimmedLine;
+          }
+        }
+        
+        if (name) {
+          recommendations.push({
+            name: name,
+            location: location,
+            reason: reason || 'Great dining option for your preferences',
+            estimatedCost: preferences?.budget === 'low' ? 25 : preferences?.budget === 'medium' ? 50 : 100,
+            reservationTips: 'Book 60 days in advance for best availability'
+          });
+        }
+      }
+      
+      if (currentRec) {
+        recommendations.push(currentRec);
+      }
+      
+      // If we couldn't parse individual recommendations, return the full content as one
+      if (recommendations.length === 0) {
+        recommendations.push({
+          name: 'AI Dining Recommendations',
           location: preferences?.park || 'Disney World',
           reason: content,
           estimatedCost: preferences?.budget === 'low' ? 25 : preferences?.budget === 'medium' ? 50 : 100,
           reservationTips: 'Book 60 days in advance for best availability'
-        }
-      ],
+        });
+      }
+      
+      parsedResults = recommendations;
+    }
+    
+    return res.json({
+      result: parsedResults,
       debug: {
         systemMessage: systemMessage,
         userPrompt: finalUserPrompt,
         maxTokens: maxTokens,
         customPromptReceived: customPrompt ? true : false,
         openAIContent: content,
-        preferencesReceived: preferences
+        preferencesReceived: preferences,
+        parsedRecommendations: parsedResults.length
       }
     });
   } catch (error) {
