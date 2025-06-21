@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Plus, List, Grid } from 'lucide-react';
+import { Calendar, Plus, List, Grid, Bot } from 'lucide-react';
 import { Trip, TripDay, Park } from './types';
 import { storageService } from './utils/cloudStorage';
 import TripDayCard from './components/TripDayCard';
@@ -8,11 +8,13 @@ import AddDayModal from './components/AddDayModal';
 import Header from './components/Header';
 import AgendaView from './components/AgendaView';
 import TripManager from './components/TripManager';
+import AIAssistant from './components/AIAssistant';
 
 function App() {
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
   const [showAddDayModal, setShowAddDayModal] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   const [viewMode, setViewMode] = useState<'detailed' | 'agenda'>('detailed');
 
@@ -121,13 +123,22 @@ function App() {
                 </div>
 
                 {/* Action Buttons */}
-                <button
-                  onClick={() => setShowAddDayModal(true)}
-                  className="bg-disney-blue hover:bg-disney-darkblue text-white px-4 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors text-sm font-medium min-h-[44px]"
-                >
-                  <Plus size={18} />
-                  <span>Add Day</span>
-                </button>
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                  <button
+                    onClick={() => setShowAIAssistant(true)}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-4 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all text-sm font-medium min-h-[44px] shadow-md hover:shadow-lg"
+                  >
+                    <Bot size={18} />
+                    <span>AI Assistant</span>
+                  </button>
+                  <button
+                    onClick={() => setShowAddDayModal(true)}
+                    className="bg-disney-blue hover:bg-disney-darkblue text-white px-4 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors text-sm font-medium min-h-[44px]"
+                  >
+                    <Plus size={18} />
+                    <span>Add Day</span>
+                  </button>
+                </div>
               </div>
             </div>
           
@@ -200,6 +211,14 @@ function App() {
           onAdd={addDay}
           onClose={() => setShowAddDayModal(false)}
           existingDates={tripDays.map(day => new Date(day.date + 'T00:00:00'))}
+        />
+      )}
+
+      {/* AI Assistant Modal */}
+      {showAIAssistant && (
+        <AIAssistant
+          currentTrip={currentTrip}
+          onClose={() => setShowAIAssistant(false)}
         />
       )}
     </div>

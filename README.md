@@ -41,6 +41,14 @@ A comprehensive web application for planning your magical Disney vacation! This 
 - Reservations: Purple
 - Food: Orange
 
+### 🤖 AI-Powered Features
+- **Smart Itinerary Suggestions**: Get personalized park recommendations based on your group's preferences
+- **Day Optimization**: AI-powered scheduling to minimize wait times and maximize fun
+- **Dining Recommendations**: Restaurant suggestions based on cuisine, budget, and dietary needs
+- **Ride Suggestions**: Attraction recommendations tailored to your thrill level and interests
+- **Trip Summary**: Encouraging overviews with tips for a successful vacation
+- **Powered by OpenAI**: Uses GPT-3.5-turbo for intelligent suggestions (see `openai-setup.md`)
+
 ### 💾 Data Management
 - **Local Storage**: Automatic saving to your device
 - **Cloud Storage**: Optional Firebase integration for cross-device sync
@@ -199,12 +207,22 @@ git remote -v
 - Import previous trips to continue planning
 - Edit or delete any items by clicking the edit/delete buttons
 
+### Using AI Features
+1. **Setup**: Add your OpenAI API key (see `openai-setup.md`)
+2. **Access**: Click the "AI Assistant" button in the trip overview
+3. **Trip Itinerary**: Get comprehensive trip planning suggestions
+4. **Day Optimization**: Optimize your planned activities for efficiency
+5. **Dining Suggestions**: Get restaurant recommendations based on preferences
+6. **Ride Suggestions**: Get attraction recommendations for your group
+7. **Trip Summary**: Generate encouraging trip overviews
+
 ## Technology Stack
 
 - **Frontend**: React 18 with TypeScript
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Date Handling**: date-fns
+- **AI Integration**: OpenAI GPT-3.5-turbo API
 - **Storage**: Local Storage + Optional Firebase Firestore
 - **Deployment**: GitHub + Vercel (automatic CI/CD)
 - **Build Tool**: Create React App
