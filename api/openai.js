@@ -5,10 +5,22 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // Server-side only, not exposed to client
 });
 
+// Check if OpenAI is properly configured
+if (!process.env.OPENAI_API_KEY) {
+  console.error('OPENAI_API_KEY environment variable is not set');
+}
+
 export default async function handler(req, res) {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Check if OpenAI API key is configured
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({ 
+      error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your environment variables.' 
+    });
   }
 
   try {
@@ -35,10 +47,11 @@ export default async function handler(req, res) {
 }
 
 async function handleItinerarySuggestions(req, res, data) {
-  const { trip, preferences } = data;
-  
-  const prompt = `Create a personalized Disney trip itinerary suggestion for:
+  try {
+    const { trip, preferences } = data;
     
+    const prompt = `Create a personalized Disney trip itinerary suggestion for:
+      
 Trip Details:
 - Duration: ${trip.days.length} days
 - Resort: ${trip.resort?.name || 'Not specified'}
@@ -61,37 +74,44 @@ Please provide:
 
 Keep it practical and actionable, focusing on real Disney World experiences.`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    max_tokens: 1000,
-    temperature: 0.7
-  });
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.7
+    });
 
-  return res.json({ 
-    result: response.choices[0]?.message?.content || 'Unable to generate suggestions at this time.' 
-  });
+    return res.json({ 
+      result: response.choices[0]?.message?.content || 'Unable to generate suggestions at this time.' 
+    });
+  } catch (error) {
+    console.error('Error in handleItinerarySuggestions:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate itinerary suggestions: ' + error.message 
+    });
+  }
 }
 
 async function handleDayOptimization(req, res, data) {
-  const { day, preferences } = data;
-  
-  const activities = [
-    ...day.rides.map(r => `Ride: ${r.name}`),
-    ...day.food.map(f => `Dining: ${f.name} at ${f.timeSlot || 'flexible time'}`),
-    ...day.reservations.map(r => `Reservation: ${r.name} at ${r.time}`)
-  ];
+  try {
+    const { day, preferences } = data;
+    
+    const activities = [
+      ...day.rides.map(r => `Ride: ${r.name}`),
+      ...day.food.map(f => `Dining: ${f.name} at ${f.timeSlot || 'flexible time'}`),
+      ...day.reservations.map(r => `Reservation: ${r.name} at ${r.time}`)
+    ];
 
-  const prompt = `Optimize this Disney park day plan:
+    const prompt = `Optimize this Disney park day plan:
 
 Park: ${day.park?.name || 'Not specified'}
 Current Activities: ${activities.join(', ')}
@@ -109,45 +129,52 @@ Please provide:
 
 Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    max_tokens: 800,
-    temperature: 0.5
-  });
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 800,
+      temperature: 0.5
+    });
 
-  const content = response.choices[0]?.message?.content || '';
-  
-  // Try to parse JSON response, fallback to basic structure
-  try {
-    const result = JSON.parse(content);
-    return res.json({ result });
-  } catch {
-    return res.json({
-      result: {
-        suggestedOrder: activities,
-        timeEstimates: {},
-        tips: [content],
-        warnings: []
-      }
+    const content = response.choices[0]?.message?.content || '';
+    
+    // Try to parse JSON response, fallback to basic structure
+    try {
+      const result = JSON.parse(content);
+      return res.json({ result });
+    } catch {
+      return res.json({
+        result: {
+          suggestedOrder: activities,
+          timeEstimates: {},
+          tips: [content],
+          warnings: []
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error in handleDayOptimization:', error);
+    return res.status(500).json({ 
+      error: 'Failed to optimize day plan: ' + error.message 
     });
   }
 }
 
 async function handleDiningSuggestions(req, res, data) {
-  const { preferences } = data;
-  
-  const prompt = `Suggest Disney World dining options for:
+  try {
+    const { preferences } = data;
     
+    const prompt = `Suggest Disney World dining options for:
+      
 Preferences:
 - Park: ${preferences.park || 'Any park'}
 - Meal type: ${preferences.mealType}
@@ -158,42 +185,49 @@ Preferences:
 
 Provide 3-5 specific restaurant recommendations with reasons why they fit the criteria.`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    max_tokens: 600,
-    temperature: 0.7
-  });
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 600,
+      temperature: 0.7
+    });
 
-  const content = response.choices[0]?.message?.content || '';
-  
-  return res.json({
-    result: [
-      {
-        name: 'AI-Generated Suggestion',
-        location: preferences.park || 'Disney World',
-        reason: content,
-        estimatedCost: preferences.budget === 'low' ? 25 : preferences.budget === 'medium' ? 50 : 100,
-        reservationTips: 'Book 60 days in advance for best availability'
-      }
-    ]
-  });
+    const content = response.choices[0]?.message?.content || '';
+    
+    return res.json({
+      result: [
+        {
+          name: 'AI-Generated Suggestion',
+          location: preferences.park || 'Disney World',
+          reason: content,
+          estimatedCost: preferences.budget === 'low' ? 25 : preferences.budget === 'medium' ? 50 : 100,
+          reservationTips: 'Book 60 days in advance for best availability'
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('Error in handleDiningSuggestions:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate dining suggestions: ' + error.message 
+    });
+  }
 }
 
 async function handleRideSuggestions(req, res, data) {
-  const { preferences } = data;
-  
-  const prompt = `Suggest Disney World attractions for:
+  try {
+    const { preferences } = data;
     
+    const prompt = `Suggest Disney World attractions for:
+      
 Preferences:
 - Park: ${preferences.park || 'Any park'}
 - Thrill level: ${preferences.thrillLevel}
@@ -203,45 +237,52 @@ Preferences:
 
 Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    max_tokens: 600,
-    temperature: 0.7
-  });
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 600,
+      temperature: 0.7
+    });
 
-  const content = response.choices[0]?.message?.content || '';
-  
-  return res.json({
-    result: [
-      {
-        name: 'AI-Generated Suggestions',
-        park: preferences.park || 'Disney World',
-        reason: content,
-        bestTime: 'Early morning or evening',
-        lightningLaneRecommended: preferences.thrillLevel === 'intense'
-      }
-    ]
-  });
+    const content = response.choices[0]?.message?.content || '';
+    
+    return res.json({
+      result: [
+        {
+          name: 'AI-Generated Suggestions',
+          park: preferences.park || 'Disney World',
+          reason: content,
+          bestTime: 'Early morning or evening',
+          lightningLaneRecommended: preferences.thrillLevel === 'intense'
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('Error in handleRideSuggestions:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate ride suggestions: ' + error.message 
+    });
+  }
 }
 
 async function handleTripSummary(req, res, data) {
-  const { trip } = data;
-  
-  const totalActivities = trip.days.reduce((total, day) => 
-    total + day.rides.length + day.food.length + day.reservations.length, 0
-  );
+  try {
+    const { trip } = data;
+    
+    const totalActivities = trip.days.reduce((total, day) => 
+      total + day.rides.length + day.food.length + day.reservations.length, 0
+    );
 
-  const prompt = `Create a friendly trip summary for this Disney vacation:
+    const prompt = `Create a friendly trip summary for this Disney vacation:
 
 Trip: ${trip.name}
 Duration: ${trip.days.length} days
@@ -250,23 +291,29 @@ Total planned activities: ${totalActivities}
 
 Create an encouraging summary highlighting what makes this trip special and any tips for success.`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    max_tokens: 300,
-    temperature: 0.8
-  });
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 300,
+      temperature: 0.8
+    });
 
-  return res.json({ 
-    result: response.choices[0]?.message?.content || 'Your Disney trip is going to be magical!' 
-  });
+    return res.json({ 
+      result: response.choices[0]?.message?.content || 'Your Disney trip is going to be magical!' 
+    });
+  } catch (error) {
+    console.error('Error in handleTripSummary:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate trip summary: ' + error.message 
+    });
+  }
 } 
