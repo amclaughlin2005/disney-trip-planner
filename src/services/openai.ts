@@ -18,14 +18,20 @@ const callSecureAPI = async (action: string, data: any) => {
     });
 
     if (!response.ok) {
-      throw new Error(`API call failed: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('API Error Response:', errorData);
+      throw new Error(errorData.error || `API call failed: ${response.statusText}`);
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
     console.error('Secure API call failed:', error);
-    throw error;
+    // Re-throw with more context
+    if (error instanceof Error) {
+      throw new Error(`AI Service Error: ${error.message}`);
+    }
+    throw new Error('AI Service Error: Unknown error occurred');
   }
 };
 
