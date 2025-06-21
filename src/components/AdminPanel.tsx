@@ -327,9 +327,18 @@ const AdminPanel: React.FC = () => {
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <Crown className="h-8 w-8 text-yellow-500" />
-            <h1 className="text-3xl font-bold text-gray-900">Super Admin Panel</h1>
+            <div>
+              <button
+                onClick={() => window.location.href = window.location.origin}
+                className="text-2xl font-bold text-gray-900 hover:text-disney-blue transition-colors cursor-pointer text-left"
+                title="Return to Disney Trip Planner"
+              >
+                Disney Trip Planner
+              </button>
+              <p className="text-sm text-gray-500 mt-1">Super Admin Panel</p>
+            </div>
           </div>
           {isImpersonating && (
             <div className="flex items-center space-x-2">
