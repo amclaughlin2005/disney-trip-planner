@@ -36,11 +36,25 @@ const MainApp: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Access Required</h2>
           <p className="text-gray-600 mb-6">
             You need to be assigned to an account to access the Disney Trip Planner. 
-            Please contact your administrator to get access.
+            {appUser.isSuperAdmin 
+              ? ' As a super admin, you can access the admin panel to assign yourself to an account.'
+              : ' Please contact your administrator to get access.'
+            }
           </p>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 mb-6">
             Logged in as: {appUser.name} ({appUser.email})
           </div>
+          
+          {/* Admin Panel Access for Super Admins */}
+          {appUser.isSuperAdmin && (
+            <button
+              onClick={() => window.location.href = '/admin'}
+              className="flex items-center justify-center space-x-2 w-full px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+            >
+              <Crown className="h-5 w-5" />
+              <span>Access Admin Panel</span>
+            </button>
+          )}
         </div>
       </div>
     );
