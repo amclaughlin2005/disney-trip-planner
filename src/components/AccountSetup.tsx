@@ -8,7 +8,7 @@ interface AccountSetupProps {
 }
 
 const AccountSetup: React.FC<AccountSetupProps> = ({ mode = 'welcome', onComplete }) => {
-  const { createUserAccount, appUser } = useUserManagement();
+  const { createUserAccount, completeAccountSetup, appUser } = useUserManagement();
   const [accountName, setAccountName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,7 +25,11 @@ const AccountSetup: React.FC<AccountSetupProps> = ({ mode = 'welcome', onComplet
     setError('');
     
     try {
-      await createUserAccount(accountName.trim());
+      if (mode === 'welcome' && completeAccountSetup) {
+        await completeAccountSetup(accountName.trim());
+      } else {
+        await createUserAccount(accountName.trim());
+      }
       setSuccess(true);
       
       // Show success message briefly, then complete

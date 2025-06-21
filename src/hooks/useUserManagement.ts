@@ -28,6 +28,7 @@ export const useUserManagement = () => {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsAccountSetup, setNeedsAccountSetup] = useState(false);
   
   // Impersonation state
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -63,11 +64,9 @@ export const useUserManagement = () => {
           status: 'active'
         });
 
-        // For new users (not super admins), automatically create a personal account
+        // For new users (not super admins), show account setup instead of auto-creating
         if (!existingUser.isSuperAdmin) {
-          const defaultAccountName = generateDefaultAccountName(existingUser.name);
-          const newAccount = await createUserAccount(defaultAccountName, existingUser);
-          console.log(`Auto-created account for new user: ${newAccount.name}`);
+          setNeedsAccountSetup(true);
         }
       } else {
         // Update last login
@@ -443,6 +442,15 @@ export const useUserManagement = () => {
     return !isSuperAdmin() && !getEffectiveUser()?.accountId;
   };
 
+  const completeAccountSetup = async (accountName: string): Promise<UserAccount> => {
+    if (!appUser) throw new Error('No user to set up account for');
+    
+    const newAccount = await createUserAccount(accountName, appUser);
+    setNeedsAccountSetup(false);
+    console.log(`Account setup completed: ${newAccount.name}`);
+    return newAccount;
+  };
+
   return {
     user,
     appUser: getEffectiveUser(), // Return effective user (considering impersonation)
@@ -479,5 +487,7 @@ export const useUserManagement = () => {
     canManageAccount,
     canManageUsers,
     needsAccount,
+    needsAccountSetup,
+    completeAccountSetup,
   };
 }; 

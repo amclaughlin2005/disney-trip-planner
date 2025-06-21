@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Crown, Calendar, Plus, List, Grid, Bot } from 'lucide-react';
+import { Crown, Calendar, Plus, List, Grid, Bot, Shield, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import AuthWrapper from './components/AuthWrapper';
 import TripManager from './components/TripManager';
@@ -24,6 +24,7 @@ const MainApp: React.FC = () => {
     appUser, 
     userAccount, 
     loading,
+    needsAccountSetup,
     isImpersonating,
     impersonatedUser,
     impersonatedAccount
@@ -61,6 +62,48 @@ const MainApp: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-disney-blue mx-auto mb-4"></div>
           <p className="text-gray-600">Setting up your Disney Trip Planner...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // PRIORITY: Show account setup immediately after user profile creation
+  if (clerkUser && appUser && needsAccountSetup && !appUser.isSuperAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          {/* Welcome Header */}
+          <div className="text-center mb-8">
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-green-100 rounded-full p-3">
+                  <Shield className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                🎉 Welcome {appUser.name}!
+              </h1>
+              <p className="text-gray-600">
+                Your Disney Trip Planner profile has been created successfully.
+              </p>
+              <div className="mt-4 text-sm text-gray-500">
+                Signed in as: <span className="font-medium">{appUser.email}</span>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-disney-blue to-disney-purple text-white rounded-lg p-6">
+              <Sparkles className="h-8 w-8 mx-auto mb-3" />
+              <h2 className="text-xl font-semibold mb-2">
+                One More Step - Create Your Account!
+              </h2>
+              <p className="text-blue-100">
+                Let's set up your personal Disney planning account so you can start creating magical vacation itineraries.
+              </p>
+            </div>
+          </div>
+
+          {/* Account Setup Component */}
+          <AccountSetup mode="welcome" />
         </div>
       </div>
     );
