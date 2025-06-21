@@ -1,6 +1,6 @@
 # 🚀 Quick Deployment Guide
 
-Your Disney Trip Planner is now connected to GitHub and Netlify for automatic deployments!
+Your Disney Trip Planner is now connected to GitHub and Vercel for automatic deployments!
 
 ## 📝 **Making Updates (3 Simple Steps)**
 
@@ -15,10 +15,10 @@ git push
 ```
 
 ### **3. Automatic Deployment**
-- Netlify automatically detects the push
+- Vercel automatically detects the push
 - Builds your app with `npm run build`
 - Deploys to your live site
-- Usually takes 2-3 minutes
+- Usually takes 1-2 minutes (faster than Netlify!)
 
 ## 🔧 **Common Update Commands**
 
@@ -45,11 +45,12 @@ git push
 
 ## 📊 **Monitoring Deployments**
 
-### **Netlify Dashboard**
-- **Site Overview**: See deployment status
-- **Deploys**: View build logs and history
-- **Functions**: Monitor any serverless functions
-- **Analytics**: Track site usage
+### **Vercel Dashboard**
+- **Project Overview**: See deployment status
+- **Deployments**: View build logs and history
+- **Functions**: Monitor any serverless functions (if used)
+- **Analytics**: Built-in performance and usage tracking
+- **Speed Insights**: Real-time performance monitoring
 
 ### **GitHub Repository**
 - **Commits**: View change history
@@ -58,13 +59,14 @@ git push
 
 ## 🎯 **Your Repository**
 - **GitHub**: https://github.com/amclaughlin2005/disney-trip-planner
-- **Netlify**: Your existing site URL
+- **Vercel**: Your deployment URL (check Vercel dashboard)
+- **Vercel Dashboard**: https://vercel.com/dashboard
 
 ## 🔄 **Workflow Summary**
 1. **Code locally** → Make changes
 2. **Git commit** → Save changes
 3. **Git push** → Upload to GitHub
-4. **Netlify builds** → Automatically deploys
+4. **Vercel builds** → Automatically deploys (faster!)
 5. **Live site updated** → Changes are live!
 
 **No more manual uploads needed!** 🎉 

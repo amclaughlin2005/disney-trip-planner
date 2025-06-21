@@ -83,7 +83,7 @@ npm run build
 
 ## Deployment
 
-This app is set up with automatic deployment via GitHub and Netlify.
+This app is set up with automatic deployment via GitHub and Vercel.
 
 ### 🚀 Deploying Updates
 
@@ -104,7 +104,7 @@ When you make changes to the app, follow these simple steps to deploy:
    git push
    ```
 
-4. **Automatic deployment:** Netlify will automatically detect the push and deploy your changes (usually takes 2-3 minutes)
+4. **Automatic deployment:** Vercel will automatically detect the push and deploy your changes (usually takes 1-2 minutes)
 
 ### 📋 Example Deployment Workflow
 
@@ -114,7 +114,7 @@ git add .
 git commit -m "Added new Disney park selection feature"
 git push
 
-# Netlify will automatically:
+# Vercel will automatically:
 # 1. Detect the GitHub push
 # 2. Run npm install
 # 3. Run npm run build  
@@ -124,7 +124,8 @@ git push
 ### 🔗 Repository & Deployment Links
 
 - **GitHub Repository**: https://github.com/amclaughlin2005/disney-trip-planner
-- **Live Site**: Your Netlify URL (check your Netlify dashboard)
+- **Live Site**: Your Vercel URL (check your Vercel dashboard)
+- **Vercel Dashboard**: https://vercel.com/dashboard
 
 ### 🛠️ Common Deployment Commands
 
@@ -150,10 +151,11 @@ git remote -v
 
 ### 📊 Monitoring Deployments
 
-- **Netlify Dashboard**: Monitor build status and deployment logs
-- **GitHub**: View commit history and repository activity
-- **Build Time**: Typically 2-3 minutes for full deployment
-- **Build Status**: Check for any errors in Netlify deploy logs
+- **Vercel Dashboard**: Monitor build status and deployment logs
+- **GitHub**: View commit history and repository activity  
+- **Build Time**: Typically 1-2 minutes for full deployment (faster than Netlify!)
+- **Build Status**: Check for any errors in Vercel deploy logs
+- **Performance**: Built-in analytics and performance monitoring
 
 ## How to Use
 
@@ -204,7 +206,7 @@ git remote -v
 - **Icons**: Lucide React
 - **Date Handling**: date-fns
 - **Storage**: Local Storage + Optional Firebase Firestore
-- **Deployment**: GitHub + Netlify (automatic CI/CD)
+- **Deployment**: GitHub + Vercel (automatic CI/CD)
 - **Build Tool**: Create React App
 
 ## Browser Support
