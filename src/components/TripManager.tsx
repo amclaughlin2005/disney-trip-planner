@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Plus, FolderOpen, Download, Upload, Trash2, Cloud, CloudOff } from 'lucide-react';
 import { Trip, Resort, RESORTS } from '../types';
-import { createTrip, exportTrip, importTrip } from '../utils/tripStorage';
+import { createTrip, exportTrip, importTrip, getTripsForUser } from '../utils/tripStorage';
 import { storageService, isCloudStorageConfigured } from '../utils/cloudStorage';
 import { formatDateSafe, getDaysBetween } from '../utils/dateUtils';
+import { useUserManagement } from '../hooks/useUserManagement';
 
 interface TripManagerProps {
   currentTrip: Trip | null;
@@ -16,6 +17,7 @@ const TripManager: React.FC<TripManagerProps> = ({
   onTripSelect,
   onTripCreate,
 }) => {
+  const { appUser, userAccount } = useUserManagement();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTripList, setShowTripList] = useState(false);
@@ -30,17 +32,39 @@ const TripManager: React.FC<TripManagerProps> = ({
   });
 
   useEffect(() => {
-    loadTrips();
-  }, []);
+    if (appUser) {
+      loadTrips();
+    }
+  }, [appUser, userAccount]);
 
   const loadTrips = async () => {
+    if (!appUser) return;
+    
     setIsLoading(true);
     try {
-      console.log('🎢 Loading trips from storage service...');
-      const savedTrips = await storageService.getTrips();
-      setTrips(savedTrips);
+      console.log('🎢 Loading trips for user and account...');
+      
+      // Load trips from storage service (cloud or local)
+      let savedTrips: Trip[] = [];
+      
+      try {
+        savedTrips = await storageService.getTrips();
+      } catch (error) {
+        console.warn('Cloud storage failed, falling back to local storage');
+        // Fallback to account-scoped local storage
+        savedTrips = getTripsForUser(appUser.clerkId, userAccount?.id);
+      }
+      
+      // Filter trips for current user's access
+      const userTrips = savedTrips.filter(trip => {
+        return (userAccount && trip.accountId === userAccount.id) || 
+               (trip.createdBy === appUser.clerkId) ||
+               (trip.isPublic === true);
+      });
+      
+      setTrips(userTrips);
       setIsCloudConnected(isCloudStorageConfigured());
-      console.log(`🎉 Loaded ${savedTrips.length} trips successfully`);
+      console.log(`🎉 Loaded ${userTrips.length} trips for user`);
     } catch (error) {
       console.error('Failed to load trips:', error);
       setTrips([]);
@@ -53,6 +77,11 @@ const TripManager: React.FC<TripManagerProps> = ({
   const handleCreateTrip = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!appUser || !userAccount) {
+      alert('You must be assigned to an account to create trips');
+      return;
+    }
+    
     if (new Date(formData.endDate) < new Date(formData.startDate)) {
       alert('End date must be after start date');
       return;
@@ -64,7 +93,9 @@ const TripManager: React.FC<TripManagerProps> = ({
         formData.name,
         formData.startDate,
         formData.endDate,
-        formData.resortId || null
+        formData.resortId || null,
+        userAccount.id,
+        appUser.clerkId
       );
 
       await storageService.saveTrip(trip);
@@ -81,6 +112,20 @@ const TripManager: React.FC<TripManagerProps> = ({
   };
 
   const handleDeleteTrip = async (tripId: string) => {
+    if (!appUser) return;
+    
+    const tripToDelete = trips.find(t => t.id === tripId);
+    if (!tripToDelete) return;
+    
+    // Check permissions
+    const canDelete = (userAccount && tripToDelete.accountId === userAccount.id) || 
+                     (tripToDelete.createdBy === appUser.clerkId);
+    
+    if (!canDelete) {
+      alert('You do not have permission to delete this trip');
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to delete this trip?')) {
       setIsLoading(true);
       try {
@@ -100,21 +145,36 @@ const TripManager: React.FC<TripManagerProps> = ({
 
   const handleImportTrip = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setIsLoading(true);
-      try {
-        const trip = await importTrip(file);
-        await storageService.saveTrip(trip);
-        onTripCreate(trip);
-        loadTrips();
-        alert('Trip imported successfully!');
-      } catch (error) {
-        console.error('Failed to import trip:', error);
-        alert(`Failed to import trip: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!file || !appUser || !userAccount) return;
+    
+    setIsLoading(true);
+    try {
+      const trip = await importTrip(file, userAccount.id, appUser.clerkId);
+      await storageService.saveTrip(trip);
+      onTripCreate(trip);
+      loadTrips();
+      alert('Trip imported successfully!');
+    } catch (error) {
+      console.error('Failed to import trip:', error);
+      alert(`Failed to import trip: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const canCreateTrips = (): boolean => {
+    return !!(appUser && userAccount);
+  };
+
+  const getTripOwnershipInfo = (trip: Trip): string => {
+    if (trip.createdBy === appUser?.clerkId) {
+      return 'Created by you';
+    } else if (trip.accountId === userAccount?.id) {
+      return `Shared in ${userAccount.name}`;
+    } else if (trip.isPublic) {
+      return 'Public trip';
+    }
+    return 'Shared trip';
   };
 
   const getResortCategory = (category: string) => {
@@ -159,8 +219,9 @@ const TripManager: React.FC<TripManagerProps> = ({
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
         <button
           onClick={() => setShowCreateForm(true)}
-          disabled={isLoading}
+          disabled={isLoading || !canCreateTrips()}
           className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+          title={!canCreateTrips() ? 'You must be assigned to an account to create trips' : ''}
         >
           <Plus size={16} />
           <span>New Trip</span>
@@ -386,6 +447,9 @@ const TripManager: React.FC<TripManagerProps> = ({
                           </div>
                           <div className="sm:hidden mt-1 text-xs text-gray-500">
                             {getTripDuration(trip.startDate, trip.endDate)} • {trip.days.length} days planned
+                          </div>
+                          <div className="mt-1 text-xs text-blue-600">
+                            {getTripOwnershipInfo(trip)}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">

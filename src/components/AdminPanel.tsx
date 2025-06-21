@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building } from 'lucide-react';
+import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck } from 'lucide-react';
 import { AppUser, UserAccount } from '../types';
+import { useUserManagement } from '../hooks/useUserManagement';
 
 // This would normally come from your backend API
 // For now, we'll simulate it with localStorage
@@ -14,40 +15,63 @@ interface AddUserForm {
   role: string;
 }
 
+interface AssignUserForm {
+  userId: string;
+  accountId: string;
+  role: string;
+}
+
 const AdminPanel: React.FC = () => {
   const { user } = useUser();
+  const {
+    getAllUsers,
+    getAllAccounts,
+    assignUserToAccount,
+    removeUserFromAccount,
+    deleteAccount,
+    updateUserAccount,
+    isSuperAdmin
+  } = useUserManagement();
+
   const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'settings'>('users');
   const [users, setUsers] = useState<AppUser[]>([]);
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showAssignUserModal, setShowAssignUserModal] = useState(false);
   const [addUserForm, setAddUserForm] = useState<AddUserForm>({
     email: '',
     name: '',
     accountId: '',
     role: 'viewer'
   });
+  const [assignUserForm, setAssignUserForm] = useState<AssignUserForm>({
+    userId: '',
+    accountId: '',
+    role: 'viewer'
+  });
   const [addUserLoading, setAddUserLoading] = useState(false);
+  const [assignUserLoading, setAssignUserLoading] = useState(false);
 
   // Check if current user is super admin
-  const isSuperAdmin = user?.primaryEmailAddress?.emailAddress === SUPER_ADMIN_EMAIL;
+  const isCurrentUserSuperAdmin = user?.primaryEmailAddress?.emailAddress === SUPER_ADMIN_EMAIL;
 
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (isCurrentUserSuperAdmin) {
       loadAdminData();
     }
-  }, [isSuperAdmin]);
+  }, [isCurrentUserSuperAdmin]);
 
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      // In a real app, this would be API calls
-      // For now, we'll simulate with localStorage
-      const storedUsers = localStorage.getItem('admin-users');
-      const storedAccounts = localStorage.getItem('admin-accounts');
+      const [usersData, accountsData] = await Promise.all([
+        getAllUsers(),
+        getAllAccounts()
+      ]);
       
-      setUsers(storedUsers ? JSON.parse(storedUsers) : []);
-      setAccounts(storedAccounts ? JSON.parse(storedAccounts) : []);
+      setUsers(usersData);
+      setAccounts(accountsData);
     } catch (error) {
       console.error('Error loading admin data:', error);
     } finally {
@@ -55,45 +79,57 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const saveAdminData = (newUsers: AppUser[], newAccounts: UserAccount[]) => {
-    localStorage.setItem('admin-users', JSON.stringify(newUsers));
-    localStorage.setItem('admin-accounts', JSON.stringify(newAccounts));
-    setUsers(newUsers);
-    setAccounts(newAccounts);
-  };
-
-  const createAccount = () => {
+  const createAccount = async () => {
     const accountName = prompt('Enter account name:');
     if (!accountName) return;
 
-    const newAccount: UserAccount = {
-      id: `account-${Date.now()}`,
-      name: accountName,
-      ownerId: user?.id || '',
-      subscriptionStatus: 'trial',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    try {
+      const newAccount: UserAccount = {
+        id: `account-${Date.now()}`,
+        name: accountName,
+        ownerId: user?.id || '',
+        subscriptionStatus: 'trial',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-    const updatedAccounts = [...accounts, newAccount];
-    saveAdminData(users, updatedAccounts);
-  };
-
-  const deleteAccount = (accountId: string) => {
-    if (window.confirm('Are you sure you want to delete this account? This will remove all associated data.')) {
-      const updatedAccounts = accounts.filter(account => account.id !== accountId);
-      const updatedUsers = users.filter(user => user.accountId !== accountId);
-      saveAdminData(updatedUsers, updatedAccounts);
+      const accounts = JSON.parse(localStorage.getItem('admin-accounts') || '[]');
+      accounts.push(newAccount);
+      localStorage.setItem('admin-accounts', JSON.stringify(accounts));
+      
+      await loadAdminData();
+    } catch (error) {
+      console.error('Error creating account:', error);
+      alert('Error creating account. Please try again.');
     }
   };
 
-  const toggleUserSuperAdmin = (userId: string) => {
-    const updatedUsers = users.map(user => 
-      user.clerkId === userId 
-        ? { ...user, isSuperAdmin: !user.isSuperAdmin }
-        : user
-    );
-    saveAdminData(updatedUsers, accounts);
+  const handleDeleteAccount = async (accountId: string) => {
+    if (window.confirm('Are you sure you want to delete this account? This will remove all associated users and data.')) {
+      try {
+        await deleteAccount(accountId);
+        await loadAdminData();
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        alert('Error deleting account. Please try again.');
+      }
+    }
+  };
+
+  const toggleUserSuperAdmin = async (userId: string) => {
+    try {
+      const storedUsers = JSON.parse(localStorage.getItem('admin-users') || '[]');
+      const updatedUsers = storedUsers.map((u: AppUser) => 
+        u.clerkId === userId 
+          ? { ...u, isSuperAdmin: !u.isSuperAdmin }
+          : u
+      );
+      localStorage.setItem('admin-users', JSON.stringify(updatedUsers));
+      await loadAdminData();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Error updating user. Please try again.');
+    }
   };
 
   const handleAddUser = () => {
@@ -139,8 +175,9 @@ const AdminPanel: React.FC = () => {
         status: 'invited' // Custom status to track invitation state
       };
 
-      const updatedUsers = [...users, newUser];
-      saveAdminData(updatedUsers, accounts);
+      const storedUsers = JSON.parse(localStorage.getItem('admin-users') || '[]');
+      storedUsers.push(newUser);
+      localStorage.setItem('admin-users', JSON.stringify(storedUsers));
 
       // Reset form and close modal
       setAddUserForm({
@@ -151,6 +188,7 @@ const AdminPanel: React.FC = () => {
       });
       setShowAddUserModal(false);
 
+      await loadAdminData();
       alert(`User invitation sent to ${addUserForm.email}! They will receive an email to join the platform.`);
       
     } catch (error) {
@@ -161,18 +199,91 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const deleteUser = (userId: string) => {
-    if (window.confirm('Are you sure you want to remove this user? This action cannot be undone.')) {
-      const updatedUsers = users.filter(user => user.clerkId !== userId);
-      saveAdminData(updatedUsers, accounts);
+  const handleAssignUser = (userId: string) => {
+    setAssignUserForm({
+      userId: userId,
+      accountId: '',
+      role: 'viewer'
+    });
+    setShowAssignUserModal(true);
+  };
+
+  const handleAssignUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAssignUserLoading(true);
+
+    try {
+      if (!assignUserForm.accountId) {
+        alert('Please select an account');
+        return;
+      }
+
+      await assignUserToAccount(
+        assignUserForm.userId,
+        assignUserForm.accountId,
+        assignUserForm.role as any
+      );
+
+      setShowAssignUserModal(false);
+      setAssignUserForm({
+        userId: '',
+        accountId: '',
+        role: 'viewer'
+      });
+
+      await loadAdminData();
+      alert('User successfully assigned to account!');
+
+    } catch (error) {
+      console.error('Error assigning user:', error);
+      alert('Error assigning user. Please try again.');
+    } finally {
+      setAssignUserLoading(false);
     }
+  };
+
+  const handleRemoveUserFromAccount = async (userId: string) => {
+    if (window.confirm('Are you sure you want to remove this user from their account?')) {
+      try {
+        await removeUserFromAccount(userId);
+        await loadAdminData();
+        alert('User removed from account successfully!');
+      } catch (error) {
+        console.error('Error removing user from account:', error);
+        alert('Error removing user from account. Please try again.');
+      }
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    if (window.confirm('Are you sure you want to remove this user? This action cannot be undone.')) {
+      try {
+        const storedUsers = JSON.parse(localStorage.getItem('admin-users') || '[]');
+        const updatedUsers = storedUsers.filter((u: AppUser) => u.clerkId !== userId);
+        localStorage.setItem('admin-users', JSON.stringify(updatedUsers));
+        await loadAdminData();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Error deleting user. Please try again.');
+      }
+    }
+  };
+
+  const getAccountName = (accountId: string | undefined): string => {
+    if (!accountId) return 'No Account';
+    const account = accounts.find(a => a.id === accountId);
+    return account ? account.name : 'Unknown Account';
+  };
+
+  const getUnassignedUsers = (): AppUser[] => {
+    return users.filter(u => !u.accountId && !u.isSuperAdmin);
   };
 
   if (!user) {
     return <div>Loading...</div>;
   }
 
-  if (!isSuperAdmin) {
+  if (!isCurrentUserSuperAdmin) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16">
         <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -227,14 +338,32 @@ const AdminPanel: React.FC = () => {
           {activeTab === 'users' && (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
-                <button
-                  onClick={handleAddUser}
-                  className="flex items-center space-x-2 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  <UserPlus size={16} />
-                  <span>Add User</span>
-                </button>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
+                  {getUnassignedUsers().length > 0 && (
+                    <p className="text-sm text-orange-600 mt-1">
+                      {getUnassignedUsers().length} user(s) need account assignment
+                    </p>
+                  )}
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleAddUser}
+                    className="flex items-center space-x-2 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    <UserPlus size={16} />
+                    <span>Add User</span>
+                  </button>
+                  {getUnassignedUsers().length > 0 && (
+                    <button
+                      onClick={() => handleAssignUser('')}
+                      className="flex items-center space-x-2 px-4 py-2 bg-disney-green text-white rounded-lg hover:bg-green-600 transition-colors"
+                    >
+                      <UserCheck size={16} />
+                      <span>Assign Users</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -277,7 +406,27 @@ const AdminPanel: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {user.accountId || 'No Account'}
+                            <div className="flex items-center space-x-2">
+                              <span>{getAccountName(user.accountId)}</span>
+                              {!user.accountId && !user.isSuperAdmin && (
+                                <button
+                                  onClick={() => handleAssignUser(user.clerkId)}
+                                  className="text-disney-blue hover:text-blue-600"
+                                  title="Assign to account"
+                                >
+                                  <ArrowRight size={14} />
+                                </button>
+                              )}
+                              {user.accountId && (
+                                <button
+                                  onClick={() => handleRemoveUserFromAccount(user.clerkId)}
+                                  className="text-orange-600 hover:text-orange-800"
+                                  title="Remove from account"
+                                >
+                                  <UserCheck size={14} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex flex-col space-y-1">
@@ -375,7 +524,7 @@ const AdminPanel: React.FC = () => {
                             <Edit size={16} />
                           </button>
                           <button
-                            onClick={() => deleteAccount(account.id)}
+                            onClick={() => handleDeleteAccount(account.id)}
                             className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 size={16} />
@@ -543,6 +692,103 @@ const AdminPanel: React.FC = () => {
                   className="flex-1 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {addUserLoading ? 'Adding...' : 'Send Invitation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign User Modal */}
+      {showAssignUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Assign User to Account</h3>
+              <button
+                onClick={() => setShowAssignUserModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignUserSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
+                  User
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <select
+                    id="userId"
+                    value={assignUserForm.userId}
+                    onChange={(e) => setAssignUserForm({ ...assignUserForm, userId: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                  >
+                    <option value="">Select a user</option>
+                    {getUnassignedUsers().map(user => (
+                      <option key={user.clerkId} value={user.clerkId}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="accountId" className="block text-sm font-medium text-gray-700 mb-1">
+                  Account
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <select
+                    id="accountId"
+                    value={assignUserForm.accountId}
+                    onChange={(e) => setAssignUserForm({ ...assignUserForm, accountId: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                  >
+                    <option value="">Select an account</option>
+                    {accounts.map(account => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                  Role
+                </label>
+                <select
+                  id="role"
+                  value={assignUserForm.role}
+                  onChange={(e) => setAssignUserForm({ ...assignUserForm, role: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                >
+                  <option value="viewer">Viewer (Read only)</option>
+                  <option value="editor">Editor (Can create/edit trips)</option>
+                  <option value="admin">Admin (Can manage users)</option>
+                  <option value="owner">Owner (Full account access)</option>
+                </select>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignUserModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={assignUserLoading}
+                  className="flex-1 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {assignUserLoading ? 'Assigning...' : 'Assign User'}
                 </button>
               </div>
             </form>

@@ -32,9 +32,36 @@ export const getTrips = (): Trip[] => {
   }
 };
 
+export const getTripsByAccount = (accountId: string): Trip[] => {
+  const trips = getTrips();
+  return trips.filter(trip => trip.accountId === accountId);
+};
+
+export const getTripsForUser = (userId: string, accountId?: string): Trip[] => {
+  const trips = getTrips();
+  return trips.filter(trip => {
+    // User can see trips from their account or public trips they created
+    return (accountId && trip.accountId === accountId) || 
+           (trip.createdBy === userId) ||
+           (trip.isPublic === true);
+  });
+};
+
 export const getTrip = (id: string): Trip | null => {
   const trips = getTrips();
   return trips.find(trip => trip.id === id) || null;
+};
+
+export const getTripWithPermissionCheck = (id: string, userId: string, accountId?: string): Trip | null => {
+  const trip = getTrip(id);
+  if (!trip) return null;
+  
+  // Check if user has permission to view this trip
+  const hasPermission = (accountId && trip.accountId === accountId) || 
+                       (trip.createdBy === userId) ||
+                       (trip.isPublic === true);
+  
+  return hasPermission ? trip : null;
 };
 
 export const deleteTrip = (id: string): void => {
@@ -43,11 +70,29 @@ export const deleteTrip = (id: string): void => {
   localStorage.setItem(TRIPS_STORAGE_KEY, JSON.stringify(filteredTrips));
 };
 
+export const deleteTripWithPermissionCheck = (id: string, userId: string, accountId?: string): boolean => {
+  const trip = getTrip(id);
+  if (!trip) return false;
+  
+  // Check if user has permission to delete this trip
+  const hasPermission = (accountId && trip.accountId === accountId) || 
+                       (trip.createdBy === userId);
+  
+  if (hasPermission) {
+    deleteTrip(id);
+    return true;
+  }
+  
+  return false;
+};
+
 export const createTrip = (
   name: string,
   startDate: string,
   endDate: string,
-  resortId: string | null
+  resortId: string | null,
+  accountId: string,
+  createdBy: string
 ): Trip => {
   const { RESORTS } = require('../types');
   const resort = resortId ? RESORTS.find((r: any) => r.id === resortId) || null : null;
@@ -83,12 +128,46 @@ export const createTrip = (
     days,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    accountId: 'default-account', // Will be updated when saved
-    createdBy: 'unknown', // Will be updated when saved
+    accountId: accountId,
+    createdBy: createdBy,
     isPublic: false
   };
   
   return trip;
+};
+
+export const updateTripPermissions = (tripId: string, isPublic: boolean, userId: string, accountId?: string): boolean => {
+  const trip = getTrip(tripId);
+  if (!trip) return false;
+  
+  // Check if user has permission to update this trip
+  const hasPermission = (accountId && trip.accountId === accountId) || 
+                       (trip.createdBy === userId);
+  
+  if (hasPermission) {
+    const updatedTrip = { ...trip, isPublic, updatedAt: new Date().toISOString() };
+    saveTrip(updatedTrip);
+    return true;
+  }
+  
+  return false;
+};
+
+export const transferTripToAccount = (tripId: string, newAccountId: string, userId: string, currentAccountId?: string): boolean => {
+  const trip = getTrip(tripId);
+  if (!trip) return false;
+  
+  // Check if user has permission to transfer this trip (must be owner or creator)
+  const hasPermission = (currentAccountId && trip.accountId === currentAccountId && trip.createdBy === userId) || 
+                       (trip.createdBy === userId);
+  
+  if (hasPermission) {
+    const updatedTrip = { ...trip, accountId: newAccountId, updatedAt: new Date().toISOString() };
+    saveTrip(updatedTrip);
+    return true;
+  }
+  
+  return false;
 };
 
 export const exportTrip = (trip: Trip): void => {
@@ -103,7 +182,7 @@ export const exportTrip = (trip: Trip): void => {
   linkElement.click();
 };
 
-export const importTrip = (file: File): Promise<Trip> => {
+export const importTrip = (file: File, accountId: string, userId: string): Promise<Trip> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -111,8 +190,10 @@ export const importTrip = (file: File): Promise<Trip> => {
         const result = e.target?.result;
         if (typeof result === 'string') {
           const trip: Trip = JSON.parse(result);
-          // Generate new ID to avoid conflicts
+          // Generate new ID to avoid conflicts and assign to user's account
           trip.id = `trip-${Date.now()}`;
+          trip.accountId = accountId;
+          trip.createdBy = userId;
           trip.updatedAt = new Date().toISOString();
           resolve(trip);
         } else {

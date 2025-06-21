@@ -34,11 +34,13 @@ export const useUserManagement = () => {
           name: user.fullName || user.primaryEmailAddress?.emailAddress || 'Unknown',
           isSuperAdmin: user.primaryEmailAddress?.emailAddress === SUPER_ADMIN_EMAIL,
           createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          lastLogin: new Date().toISOString(),
+          status: 'active'
         });
       } else {
         // Update last login
         existingUser.lastLogin = new Date().toISOString();
+        existingUser.status = 'active';
         await updateAppUser(existingUser);
       }
 
@@ -63,6 +65,16 @@ export const useUserManagement = () => {
     return users.find((u: AppUser) => u.clerkId === clerkId) || null;
   };
 
+  const getAllUsers = async (): Promise<AppUser[]> => {
+    const users = JSON.parse(localStorage.getItem('admin-users') || '[]');
+    return users;
+  };
+
+  const getAllAccounts = async (): Promise<UserAccount[]> => {
+    const accounts = JSON.parse(localStorage.getItem('admin-accounts') || '[]');
+    return accounts;
+  };
+
   const createAppUser = async (userData: Omit<AppUser, 'accountId' | 'role'>): Promise<AppUser> => {
     const users = JSON.parse(localStorage.getItem('admin-users') || '[]');
     const newUser: AppUser = {
@@ -83,6 +95,21 @@ export const useUserManagement = () => {
     if (userIndex >= 0) {
       users[userIndex] = userData;
       localStorage.setItem('admin-users', JSON.stringify(users));
+      
+      // Update local state if this is the current user
+      if (userData.clerkId === appUser?.clerkId) {
+        setAppUser(userData);
+        
+        // Update account if account changed
+        if (userData.accountId !== appUser.accountId) {
+          if (userData.accountId) {
+            const account = await getUserAccount(userData.accountId);
+            setUserAccount(account);
+          } else {
+            setUserAccount(null);
+          }
+        }
+      }
     }
     
     return userData;
@@ -123,6 +150,113 @@ export const useUserManagement = () => {
     return newAccount;
   };
 
+  const updateUserAccount = async (accountData: UserAccount): Promise<UserAccount> => {
+    const accounts = JSON.parse(localStorage.getItem('admin-accounts') || '[]');
+    const accountIndex = accounts.findIndex((a: UserAccount) => a.id === accountData.id);
+    
+    if (accountIndex >= 0) {
+      accounts[accountIndex] = {
+        ...accountData,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem('admin-accounts', JSON.stringify(accounts));
+      
+      // Update local state if this is the current user's account
+      if (accountData.id === userAccount?.id) {
+        setUserAccount(accounts[accountIndex]);
+      }
+    }
+    
+    return accounts[accountIndex];
+  };
+
+  const assignUserToAccount = async (userId: string, accountId: string, role: 'owner' | 'admin' | 'editor' | 'viewer'): Promise<AppUser> => {
+    const users = JSON.parse(localStorage.getItem('admin-users') || '[]');
+    const userIndex = users.findIndex((u: AppUser) => u.clerkId === userId);
+    
+    if (userIndex < 0) {
+      throw new Error('User not found');
+    }
+
+    // Verify account exists
+    const account = await getUserAccount(accountId);
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    // Update user
+    users[userIndex] = {
+      ...users[userIndex],
+      accountId: accountId,
+      role: role
+    };
+
+    localStorage.setItem('admin-users', JSON.stringify(users));
+    
+    // Update local state if this is the current user
+    if (userId === appUser?.clerkId) {
+      setAppUser(users[userIndex]);
+      setUserAccount(account);
+    }
+
+    return users[userIndex];
+  };
+
+  const removeUserFromAccount = async (userId: string): Promise<AppUser> => {
+    const users = JSON.parse(localStorage.getItem('admin-users') || '[]');
+    const userIndex = users.findIndex((u: AppUser) => u.clerkId === userId);
+    
+    if (userIndex < 0) {
+      throw new Error('User not found');
+    }
+
+    // Update user
+    users[userIndex] = {
+      ...users[userIndex],
+      accountId: undefined,
+      role: undefined
+    };
+
+    localStorage.setItem('admin-users', JSON.stringify(users));
+    
+    // Update local state if this is the current user
+    if (userId === appUser?.clerkId) {
+      setAppUser(users[userIndex]);
+      setUserAccount(null);
+    }
+
+    return users[userIndex];
+  };
+
+  const getUsersInAccount = async (accountId: string): Promise<AppUser[]> => {
+    const users = await getAllUsers();
+    return users.filter(u => u.accountId === accountId);
+  };
+
+  const deleteAccount = async (accountId: string): Promise<void> => {
+    // Remove account
+    const accounts = JSON.parse(localStorage.getItem('admin-accounts') || '[]');
+    const updatedAccounts = accounts.filter((a: UserAccount) => a.id !== accountId);
+    localStorage.setItem('admin-accounts', JSON.stringify(updatedAccounts));
+
+    // Remove users from account
+    const users = JSON.parse(localStorage.getItem('admin-users') || '[]');
+    const updatedUsers = users.map((u: AppUser) => 
+      u.accountId === accountId 
+        ? { ...u, accountId: undefined, role: undefined }
+        : u
+    );
+    localStorage.setItem('admin-users', JSON.stringify(updatedUsers));
+
+    // Update local state if current user was in this account
+    if (userAccount?.id === accountId) {
+      setUserAccount(null);
+      if (appUser) {
+        setAppUser({ ...appUser, accountId: undefined, role: undefined });
+      }
+    }
+  };
+
   // Permission checking functions
   const isSuperAdmin = (): boolean => {
     return appUser?.isSuperAdmin || false;
@@ -157,6 +291,10 @@ export const useUserManagement = () => {
     return isSuperAdmin() || isAccountOwner();
   };
 
+  const canManageUsers = (): boolean => {
+    return isSuperAdmin() || isAccountOwner() || appUser?.role === 'admin';
+  };
+
   const needsAccount = (): boolean => {
     return !isSuperAdmin() && !appUser?.accountId;
   };
@@ -170,6 +308,14 @@ export const useUserManagement = () => {
     
     // User management functions
     createUserAccount,
+    updateUserAccount,
+    assignUserToAccount,
+    removeUserFromAccount,
+    getUsersInAccount,
+    deleteAccount,
+    getAllUsers,
+    getAllAccounts,
+    updateAppUser,
     
     // Permission functions
     isSuperAdmin,
@@ -177,6 +323,7 @@ export const useUserManagement = () => {
     hasPermission,
     canAccessAdmin,
     canManageAccount,
+    canManageUsers,
     needsAccount,
   };
 }; 
