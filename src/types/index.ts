@@ -220,6 +220,9 @@ export interface AppUser {
   role?: 'owner' | 'admin' | 'editor' | 'viewer';
   createdAt: string;
   lastLogin?: string;
+  invitedBy?: string; // Clerk user ID of who invited this user
+  invitedAt?: string; // When the invitation was sent
+  status?: 'active' | 'invited' | 'suspended'; // User status
 }
 
 // Role definitions for easy reference

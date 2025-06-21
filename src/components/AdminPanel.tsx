@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown } from 'lucide-react';
+import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building } from 'lucide-react';
 import { AppUser, UserAccount } from '../types';
 
 // This would normally come from your backend API
 // For now, we'll simulate it with localStorage
 const SUPER_ADMIN_EMAIL = 'amclaughlin2005@gmail.com'; // Replace with your email
+
+interface AddUserForm {
+  email: string;
+  name: string;
+  accountId: string;
+  role: string;
+}
 
 const AdminPanel: React.FC = () => {
   const { user } = useUser();
@@ -13,6 +20,14 @@ const AdminPanel: React.FC = () => {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addUserForm, setAddUserForm] = useState<AddUserForm>({
+    email: '',
+    name: '',
+    accountId: '',
+    role: 'viewer'
+  });
+  const [addUserLoading, setAddUserLoading] = useState(false);
 
   // Check if current user is super admin
   const isSuperAdmin = user?.primaryEmailAddress?.emailAddress === SUPER_ADMIN_EMAIL;
@@ -81,6 +96,78 @@ const AdminPanel: React.FC = () => {
     saveAdminData(updatedUsers, accounts);
   };
 
+  const handleAddUser = () => {
+    setAddUserForm({
+      email: '',
+      name: '',
+      accountId: '',
+      role: 'viewer'
+    });
+    setShowAddUserModal(true);
+  };
+
+  const handleAddUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddUserLoading(true);
+
+    try {
+      // Validate form
+      if (!addUserForm.email || !addUserForm.name) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      // Check if user already exists
+      const existingUser = users.find(u => u.email === addUserForm.email);
+      if (existingUser) {
+        alert('A user with this email already exists');
+        return;
+      }
+
+      // Create new user (in a real app, this would send an invitation email)
+      const newUser: AppUser = {
+        clerkId: `temp-${Date.now()}`, // Temporary ID until user signs up with Clerk
+        email: addUserForm.email,
+        name: addUserForm.name,
+        accountId: addUserForm.accountId || undefined,
+        role: addUserForm.role as any,
+        isSuperAdmin: false,
+        createdAt: new Date().toISOString(),
+        lastLogin: undefined, // Will be set when user first logs in
+        invitedBy: user?.id,
+        invitedAt: new Date().toISOString(),
+        status: 'invited' // Custom status to track invitation state
+      };
+
+      const updatedUsers = [...users, newUser];
+      saveAdminData(updatedUsers, accounts);
+
+      // Reset form and close modal
+      setAddUserForm({
+        email: '',
+        name: '',
+        accountId: '',
+        role: 'viewer'
+      });
+      setShowAddUserModal(false);
+
+      alert(`User invitation sent to ${addUserForm.email}! They will receive an email to join the platform.`);
+      
+    } catch (error) {
+      console.error('Error adding user:', error);
+      alert('Error adding user. Please try again.');
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  const deleteUser = (userId: string) => {
+    if (window.confirm('Are you sure you want to remove this user? This action cannot be undone.')) {
+      const updatedUsers = users.filter(user => user.clerkId !== userId);
+      saveAdminData(updatedUsers, accounts);
+    }
+  };
+
   if (!user) {
     return <div>Loading...</div>;
   }
@@ -142,7 +229,7 @@ const AdminPanel: React.FC = () => {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
                 <button
-                  onClick={() => {/* Add user functionality */}}
+                  onClick={handleAddUser}
                   className="flex items-center space-x-2 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
                   <UserPlus size={16} />
@@ -193,15 +280,22 @@ const AdminPanel: React.FC = () => {
                             {user.accountId || 'No Account'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              user.isSuperAdmin 
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : user.role === 'owner'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {user.isSuperAdmin ? 'Super Admin' : user.role || 'User'}
-                            </span>
+                            <div className="flex flex-col space-y-1">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                user.isSuperAdmin 
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : user.role === 'owner'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {user.isSuperAdmin ? 'Super Admin' : user.role || 'User'}
+                              </span>
+                              {user.status === 'invited' && (
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                                  Invited
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
@@ -217,6 +311,13 @@ const AdminPanel: React.FC = () => {
                               </button>
                               <button className="text-gray-400 hover:text-gray-600">
                                 <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => deleteUser(user.clerkId)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Remove user"
+                              >
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
@@ -324,6 +425,129 @@ const AdminPanel: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Add User Modal */}
+      {showAddUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Add New User</h3>
+              <button
+                onClick={() => setShowAddUserModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddUserSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="email"
+                    id="email"
+                    required
+                    value={addUserForm.email}
+                    onChange={(e) => setAddUserForm({ ...addUserForm, email: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                    placeholder="user@example.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    id="name"
+                    required
+                    value={addUserForm.name}
+                    onChange={(e) => setAddUserForm({ ...addUserForm, name: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                    placeholder="John Doe"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="accountId" className="block text-sm font-medium text-gray-700 mb-1">
+                  Account
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <select
+                    id="accountId"
+                    value={addUserForm.accountId}
+                    onChange={(e) => setAddUserForm({ ...addUserForm, accountId: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                  >
+                    <option value="">No Account (Super Admin will assign later)</option>
+                    {accounts.map(account => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                  Role
+                </label>
+                <select
+                  id="role"
+                  value={addUserForm.role}
+                  onChange={(e) => setAddUserForm({ ...addUserForm, role: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-disney-blue focus:border-transparent"
+                >
+                  <option value="viewer">Viewer (Read only)</option>
+                  <option value="editor">Editor (Can create/edit trips)</option>
+                  <option value="admin">Admin (Can manage users)</option>
+                  <option value="owner">Owner (Full account access)</option>
+                </select>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start">
+                  <Mail className="text-blue-500 mt-0.5" size={16} />
+                  <div className="ml-2">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> The user will receive an invitation email to join the platform. 
+                      They'll need to create a Clerk account to access the system.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddUserModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addUserLoading}
+                  className="flex-1 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addUserLoading ? 'Adding...' : 'Send Invitation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
