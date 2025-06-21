@@ -1,27 +1,35 @@
-import OpenAI from 'openai';
 import { Trip, TripDay } from '../types';
 
-// Check if OpenAI is configured
+// Check if we're in development mode and can make API calls
 const isOpenAIConfigured = (): boolean => {
-  return !!process.env.REACT_APP_OPENAI_API_KEY;
+  // Always return true since we'll use our secure API route
+  return true;
 };
 
-// Initialize OpenAI client
-let openai: OpenAI | null = null;
-
-if (isOpenAIConfigured()) {
+// Helper function to make secure API calls to our backend
+const callSecureAPI = async (action: string, data: any) => {
   try {
-    openai = new OpenAI({
-      apiKey: process.env.REACT_APP_OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true // Note: In production, use a backend proxy
+    const response = await fetch('/api/openai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action, data }),
     });
-    console.log('OpenAI initialized successfully');
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result;
   } catch (error) {
-    console.error('Failed to initialize OpenAI:', error);
+    console.error('Secure API call failed:', error);
+    throw error;
   }
-} else {
-  console.log('OpenAI not configured - AI features disabled');
-}
+};
+
+console.log('OpenAI service initialized with secure API proxy');
 
 export interface AIService {
   generateItinerarySuggestions: (trip: Trip, preferences: ItineraryPreferences) => Promise<string>;
@@ -70,55 +78,12 @@ export interface RideSuggestion {
   lightningLaneRecommended: boolean;
 }
 
-// OpenAI implementation
+// OpenAI implementation using secure API
 export const openAIService: AIService = {
   async generateItinerarySuggestions(trip: Trip, preferences: ItineraryPreferences): Promise<string> {
-    if (!openai) {
-      throw new Error('OpenAI not configured');
-    }
-
-    const prompt = `Create a personalized Disney trip itinerary suggestion for:
-    
-Trip Details:
-- Duration: ${trip.days.length} days
-- Resort: ${trip.resort?.name || 'Not specified'}
-- Dates: ${trip.startDate} to ${trip.endDate}
-
-Group Preferences:
-- Group size: ${preferences.groupSize}
-- Ages: ${preferences.ages.join(', ')}
-- Interests: ${preferences.interests.join(', ')}
-- Budget: ${preferences.budget}
-- Mobility level: ${preferences.mobility}
-- Thrill preference: ${preferences.thrillLevel}
-
-Please provide:
-1. Recommended park order for each day
-2. Must-do attractions for this group
-3. Dining suggestions
-4. General tips and strategies
-5. Special considerations for the group's needs
-
-Keep it practical and actionable, focusing on real Disney World experiences.`;
-
     try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7
-      });
-
-      return response.choices[0]?.message?.content || 'Unable to generate suggestions at this time.';
+      const response = await callSecureAPI('generateItinerarySuggestions', { trip, preferences });
+      return response.result || 'Unable to generate suggestions at this time.';
     } catch (error) {
       console.error('OpenAI API error:', error);
       throw new Error('Failed to generate AI suggestions. Please try again.');
@@ -126,64 +91,9 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
   },
 
   async optimizeDayPlan(day: TripDay, preferences: OptimizationPreferences): Promise<DayOptimization> {
-    if (!openai) {
-      throw new Error('OpenAI not configured');
-    }
-
-    const activities = [
-      ...day.rides.map(r => `Ride: ${r.name}`),
-      ...day.food.map(f => `Dining: ${f.name} at ${f.timeSlot || 'flexible time'}`),
-      ...day.reservations.map(r => `Reservation: ${r.name} at ${r.time}`)
-    ];
-
-    const prompt = `Optimize this Disney park day plan:
-
-Park: ${day.park?.name || 'Not specified'}
-Current Activities: ${activities.join(', ')}
-
-Optimization Preferences:
-- Priority: ${preferences.priority}
-- Crowd tolerance: ${preferences.crowdTolerance}
-- Walking preference: ${preferences.walkingDistance}
-
-Please provide:
-1. Suggested order of activities
-2. Estimated time for each activity
-3. Practical tips for this day
-4. Potential issues or warnings
-
-Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
-
     try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 800,
-        temperature: 0.5
-      });
-
-      const content = response.choices[0]?.message?.content || '';
-      
-      // Try to parse JSON response, fallback to basic structure
-      try {
-        return JSON.parse(content);
-      } catch {
-        return {
-          suggestedOrder: activities,
-          timeEstimates: {},
-          tips: [content],
-          warnings: []
-        };
-      }
+      const response = await callSecureAPI('optimizeDayPlan', { day, preferences });
+      return response.result;
     } catch (error) {
       console.error('OpenAI API error:', error);
       throw new Error('Failed to optimize day plan. Please try again.');
@@ -191,52 +101,9 @@ Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
   },
 
   async suggestDining(preferences: DiningPreferences): Promise<DiningSuggestion[]> {
-    if (!openai) {
-      throw new Error('OpenAI not configured');
-    }
-
-    const prompt = `Suggest Disney World dining options for:
-    
-Preferences:
-- Park: ${preferences.park || 'Any park'}
-- Meal type: ${preferences.mealType}
-- Budget: ${preferences.budget}
-- Dietary restrictions: ${preferences.dietaryRestrictions?.join(', ') || 'None'}
-- Group size: ${preferences.groupSize}
-- Special occasions: ${preferences.specialOccasion || 'None'}
-
-Provide 3-5 specific restaurant recommendations with reasons why they fit the criteria.`;
-
     try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 600,
-        temperature: 0.7
-      });
-
-      // Parse response into structured suggestions
-      const content = response.choices[0]?.message?.content || '';
-      
-      // This is a simplified parser - in production, you'd want more robust parsing
-      return [
-        {
-          name: 'AI-Generated Suggestion',
-          location: preferences.park || 'Disney World',
-          reason: content,
-          estimatedCost: preferences.budget === 'low' ? 25 : preferences.budget === 'medium' ? 50 : 100,
-          reservationTips: 'Book 60 days in advance for best availability'
-        }
-      ];
+      const response = await callSecureAPI('suggestDining', { preferences });
+      return response.result;
     } catch (error) {
       console.error('OpenAI API error:', error);
       throw new Error('Failed to generate dining suggestions. Please try again.');
@@ -244,50 +111,9 @@ Provide 3-5 specific restaurant recommendations with reasons why they fit the cr
   },
 
   async suggestRides(preferences: RidePreferences): Promise<RideSuggestion[]> {
-    if (!openai) {
-      throw new Error('OpenAI not configured');
-    }
-
-    const prompt = `Suggest Disney World attractions for:
-    
-Preferences:
-- Park: ${preferences.park || 'Any park'}
-- Thrill level: ${preferences.thrillLevel}
-- Ages in group: ${preferences.ages?.join(', ') || 'Not specified'}
-- Interests: ${preferences.interests?.join(', ') || 'General'}
-- Time available: ${preferences.timeAvailable || 'Full day'}
-
-Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`;
-
     try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 600,
-        temperature: 0.7
-      });
-
-      const content = response.choices[0]?.message?.content || '';
-      
-      // Simplified parser - return basic structure
-      return [
-        {
-          name: 'AI-Generated Suggestions',
-          park: preferences.park || 'Disney World',
-          reason: content,
-          bestTime: 'Early morning or evening',
-          lightningLaneRecommended: preferences.thrillLevel === 'intense'
-        }
-      ];
+      const response = await callSecureAPI('suggestRides', { preferences });
+      return response.result;
     } catch (error) {
       console.error('OpenAI API error:', error);
       throw new Error('Failed to generate ride suggestions. Please try again.');
@@ -295,41 +121,9 @@ Recommend 5-8 attractions with timing strategies and Lightning Lane recommendati
   },
 
   async generateTripSummary(trip: Trip): Promise<string> {
-    if (!openai) {
-      throw new Error('OpenAI not configured');
-    }
-
-    const totalActivities = trip.days.reduce((total, day) => 
-      total + day.rides.length + day.food.length + day.reservations.length, 0
-    );
-
-    const prompt = `Create a friendly trip summary for this Disney vacation:
-
-Trip: ${trip.name}
-Duration: ${trip.days.length} days
-Resort: ${trip.resort?.name || 'Not specified'}
-Total planned activities: ${totalActivities}
-
-Create an encouraging summary highlighting what makes this trip special and any tips for success.`;
-
     try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 300,
-        temperature: 0.8
-      });
-
-      return response.choices[0]?.message?.content || 'Your Disney trip is going to be magical!';
+      const response = await callSecureAPI('generateTripSummary', { trip });
+      return response.result || 'Your Disney trip is going to be magical!';
     } catch (error) {
       console.error('OpenAI API error:', error);
       throw new Error('Failed to generate trip summary. Please try again.');
@@ -337,22 +131,22 @@ Create an encouraging summary highlighting what makes this trip special and any 
   },
 
   isAvailable(): boolean {
-    return !!openai;
+    return true; // Always available since we use secure API route
   }
 };
 
-// Fallback service when OpenAI is not configured
+// Fallback service when API is not available
 export const fallbackAIService: AIService = {
   async generateItinerarySuggestions(): Promise<string> {
-    return 'AI features are not configured. Please add your OpenAI API key to enable smart suggestions.';
+    return 'AI features are temporarily unavailable. Please try again later.';
   },
 
   async optimizeDayPlan(): Promise<DayOptimization> {
     return {
       suggestedOrder: [],
       timeEstimates: {},
-      tips: ['AI optimization requires OpenAI API configuration'],
-      warnings: ['AI features are currently disabled']
+      tips: ['AI optimization is temporarily unavailable'],
+      warnings: ['Please try again later']
     };
   },
 
@@ -373,8 +167,8 @@ export const fallbackAIService: AIService = {
   }
 };
 
-// Export the appropriate service based on configuration
-export const aiService: AIService = isOpenAIConfigured() ? openAIService : fallbackAIService;
+// Always use the secure API service
+export const aiService: AIService = openAIService;
 
 // Additional interfaces for AI features
 export interface DiningPreferences {
