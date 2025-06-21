@@ -59,16 +59,35 @@ const MainApp: React.FC = () => {
           {appUser.isSuperAdmin && (
             <button
               onClick={() => {
-                alert('Button clicked! Navigating to admin...');
                 console.log('Admin panel button clicked!');
-                console.log('User is super admin:', appUser.isSuperAdmin);
-                console.log('Attempting to navigate to /admin');
+                console.log('Current URL:', window.location.href);
+                console.log('Attempting navigation to /admin');
+                
+                // Try multiple navigation methods
                 try {
+                  // Method 1: React Router navigate
                   navigate('/admin');
+                  console.log('React Router navigate called');
                 } catch (error) {
-                  console.error('Navigation failed:', error);
-                  // Fallback to window.location
-                  window.location.href = '/admin';
+                  console.error('React Router navigation failed:', error);
+                  
+                  // Method 2: Direct URL manipulation
+                  try {
+                    const baseUrl = window.location.origin;
+                    const adminUrl = `${baseUrl}/admin`;
+                    console.log('Trying direct navigation to:', adminUrl);
+                    window.location.href = adminUrl;
+                  } catch (error2) {
+                    console.error('Direct navigation failed:', error2);
+                    
+                    // Method 3: History API
+                    try {
+                      window.history.pushState({}, '', '/admin');
+                      window.location.reload();
+                    } catch (error3) {
+                      console.error('History API failed:', error3);
+                    }
+                  }
                 }
               }}
               className="flex items-center justify-center space-x-2 w-full px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium"
@@ -83,6 +102,20 @@ const MainApp: React.FC = () => {
           <div className="mt-4 text-xs text-gray-400">
             Debug: isSuperAdmin = {String(appUser.isSuperAdmin)}
           </div>
+          
+          {/* Test direct link */}
+          {appUser.isSuperAdmin && (
+            <div className="mt-2">
+              <a 
+                href="/admin" 
+                className="text-xs text-blue-600 underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Test: Direct link to /admin (opens in new tab)
+              </a>
+            </div>
+          )}
         </div>
       </div>
     );
