@@ -254,16 +254,27 @@ Provide 3-5 specific restaurant recommendations with reasons why they fit the cr
 
     const content = response.choices[0]?.message?.content || '';
     
+    console.log('OpenAI Response Content:', content);
+    console.log('OpenAI Full Response:', JSON.stringify(response, null, 2));
+    
     return res.json({
       result: [
         {
           name: 'AI-Generated Suggestion',
-          location: preferences.park || 'Disney World',
+          location: preferences?.park || 'Disney World',
           reason: content,
-          estimatedCost: preferences.budget === 'low' ? 25 : preferences.budget === 'medium' ? 50 : 100,
+          estimatedCost: preferences?.budget === 'low' ? 25 : preferences?.budget === 'medium' ? 50 : 100,
           reservationTips: 'Book 60 days in advance for best availability'
         }
-      ]
+      ],
+      debug: {
+        systemMessage: systemMessage,
+        userPrompt: finalUserPrompt,
+        maxTokens: maxTokens,
+        customPromptReceived: customPrompt ? true : false,
+        openAIContent: content,
+        preferencesReceived: preferences
+      }
     });
   } catch (error) {
     console.error('Error in handleDiningSuggestions:', error);
