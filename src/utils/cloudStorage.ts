@@ -1,4 +1,3 @@
-import { put, del, list } from '@vercel/blob';
 import { Trip } from '../types';
 
 // Check if Vercel Blob is configured and we're in production
@@ -78,7 +77,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
   ]);
 };
 
-// Vercel Blob implementation
+// Vercel Blob implementation via API route
 export const vercelBlobStorage: CloudStorageService = {
   async saveTrip(trip: Trip): Promise<void> {
     if (!isVercelBlobConfigured()) {
@@ -87,31 +86,32 @@ export const vercelBlobStorage: CloudStorageService = {
     
     try {
       const deviceId = getDeviceId();
-      const tripData = {
-        ...trip,
-        deviceId,
-        updatedAt: new Date().toISOString(),
-        createdAt: trip.createdAt || new Date().toISOString()
-      };
       
-      // Store trip as JSON blob with device-specific path
-      const blobName = `trips/${deviceId}/${trip.id}.json`;
-      const blob = await withTimeout(
-        put(blobName, JSON.stringify(tripData), {
-          access: 'public',
-          token: getBlobToken()!
+      const response = await withTimeout(
+        fetch(`/api/blob?action=save&deviceId=${deviceId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(trip)
         }),
         10000 // 10 second timeout
       );
       
-      console.log('Trip saved to Vercel Blob:', trip.id, blob.url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Trip saved to Vercel Blob:', trip.id, result.url);
     } catch (error) {
       console.error('Error saving trip to Vercel Blob:', error);
       // If we get network errors, fall back to local storage
       if (error instanceof Error && (
         error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
         error.message.includes('Failed to fetch') ||
-        error.message.includes('Network request failed')
+        error.message.includes('Network request failed') ||
+        error.message.includes('CORS')
       )) {
         console.log('Network error during save, falling back to local storage');
         const { saveTrip } = await import('./tripStorage');
@@ -129,42 +129,20 @@ export const vercelBlobStorage: CloudStorageService = {
     
     try {
       const deviceId = getDeviceId();
-      const prefix = `trips/${deviceId}/`;
       
       console.log('Loading trips from Vercel Blob for device:', deviceId);
       
-      // List all trip files for this device with timeout
-      const { blobs } = await withTimeout(
-        list({
-          prefix,
-          token: getBlobToken()!
-        }),
+      const response = await withTimeout(
+        fetch(`/api/blob?action=list&deviceId=${deviceId}`),
         10000 // 10 second timeout
       );
       
-      console.log(`Found ${blobs.length} trip files in Vercel Blob`);
-      
-      const trips: Trip[] = [];
-      
-      // Fetch each trip file
-      for (const blob of blobs) {
-        try {
-          const response = await withTimeout(fetch(blob.url), 5000); // 5 second timeout per file
-          if (response.ok) {
-            const tripData = await response.json();
-            trips.push(tripData as Trip);
-          }
-        } catch (error) {
-          console.error('Error fetching trip blob:', blob.pathname, error);
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      // Sort by updatedAt descending
-      trips.sort((a, b) => {
-        const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-        const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
-        return bTime - aTime;
-      });
+      const result = await response.json();
+      const trips = result.trips || [];
       
       console.log(`Successfully loaded ${trips.length} trips from Vercel Blob`);
       return trips;
@@ -175,7 +153,8 @@ export const vercelBlobStorage: CloudStorageService = {
       if (error instanceof Error && (
         error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
         error.message.includes('Failed to fetch') ||
-        error.message.includes('Network request failed')
+        error.message.includes('Network request failed') ||
+        error.message.includes('CORS')
       )) {
         console.log('Network error detected, falling back to local storage');
         const { getTrips } = await import('./tripStorage');
@@ -191,27 +170,10 @@ export const vercelBlobStorage: CloudStorageService = {
     }
     
     try {
-      const deviceId = getDeviceId();
-      const blobName = `trips/${deviceId}/${id}.json`;
-      
-      // List to check if the blob exists
-      const { blobs } = await list({
-        prefix: blobName,
-        token: getBlobToken()!
-      });
-      
-      if (blobs.length === 0) {
-        return null;
-      }
-      
-      // Fetch the trip data
-      const response = await fetch(blobs[0].url);
-      if (response.ok) {
-        const tripData = await response.json();
-        return tripData as Trip;
-      }
-      
-      return null;
+      // For now, we'll get all trips and find the one we want
+      // This could be optimized with a dedicated API endpoint
+      const trips = await this.getTrips();
+      return trips.find(trip => trip.id === id) || null;
     } catch (error) {
       console.error('Error loading trip from Vercel Blob:', error);
       throw new Error('Failed to load trip from cloud storage');
@@ -225,11 +187,14 @@ export const vercelBlobStorage: CloudStorageService = {
     
     try {
       const deviceId = getDeviceId();
-      const blobName = `trips/${deviceId}/${id}.json`;
       
-      await del(blobName, {
-        token: getBlobToken()!
+      const response = await fetch(`/api/blob?action=delete&deviceId=${deviceId}&tripId=${id}`, {
+        method: 'DELETE'
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       
       console.log('Trip deleted from Vercel Blob:', id);
     } catch (error) {
