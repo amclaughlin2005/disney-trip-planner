@@ -6,7 +6,20 @@ import { Trip } from '../types';
 const getBlobToken = (): string | undefined => {
   // In production, Vercel automatically provides BLOB_READ_WRITE_TOKEN
   // In development, we use REACT_APP_BLOB_READ_WRITE_TOKEN
-  return process.env.BLOB_READ_WRITE_TOKEN || process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
+  // Note: React apps can only access REACT_APP_ prefixed variables in the browser
+  // But Vercel Blob should work with server-side environment variables
+  const productionToken = process.env.BLOB_READ_WRITE_TOKEN;
+  const devToken = process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
+  
+  console.log('Environment variable check:', {
+    NODE_ENV: process.env.NODE_ENV,
+    hasBLOB_READ_WRITE_TOKEN: !!productionToken,
+    hasREACT_APP_BLOB_READ_WRITE_TOKEN: !!devToken,
+    productionTokenPrefix: productionToken ? productionToken.substring(0, 15) + '...' : 'undefined',
+    devTokenPrefix: devToken ? devToken.substring(0, 15) + '...' : 'undefined'
+  });
+  
+  return productionToken || devToken;
 };
 
 const isVercelBlobConfigured = (): boolean => {
@@ -19,8 +32,13 @@ const isVercelBlobConfigured = (): boolean => {
   console.log('Vercel Blob configuration check:', {
     isProduction,
     hasValidToken: hasValidToken ? `${token!.substring(0, 20)}...` : 'No token',
-    tokenSource: process.env.BLOB_READ_WRITE_TOKEN ? 'BLOB_READ_WRITE_TOKEN' : 'REACT_APP_BLOB_READ_WRITE_TOKEN',
-    isConfigured
+    tokenSource: process.env.BLOB_READ_WRITE_TOKEN ? 'BLOB_READ_WRITE_TOKEN' : 
+                process.env.REACT_APP_BLOB_READ_WRITE_TOKEN ? 'REACT_APP_BLOB_READ_WRITE_TOKEN' : 'No token found',
+    isConfigured,
+    allEnvVars: Object.keys(process.env).filter(key => key.includes('BLOB')).reduce((acc, key) => {
+      acc[key] = process.env[key] ? 'present' : 'missing';
+      return acc;
+    }, {} as Record<string, string>)
   });
   
   return isConfigured;
