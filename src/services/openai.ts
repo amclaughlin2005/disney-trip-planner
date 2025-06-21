@@ -35,7 +35,11 @@ const getCurrentPrompts = (): AIPrompt[] => {
 // Get specific prompt by category
 const getPromptByCategory = (category: AIPrompt['category']): AIPrompt | null => {
   const prompts = getCurrentPrompts();
-  return prompts.find(p => p.category === category) || null;
+  console.log('Available prompts:', prompts.length);
+  console.log('Looking for category:', category);
+  const found = prompts.find(p => p.category === category) || null;
+  console.log('Found prompt:', found ? 'YES' : 'NO');
+  return found;
 };
 
 // Helper function to make secure API calls to our backend
@@ -148,6 +152,7 @@ export const openAIService: AIService = {
   async suggestDining(preferences: DiningPreferences): Promise<DiningSuggestion[]> {
     try {
       const prompt = getPromptByCategory('dining');
+      console.log('Frontend: Retrieved prompt for dining:', prompt);
       const response = await callSecureAPI('suggestDining', { preferences, prompt });
       return response.result;
     } catch (error) {
