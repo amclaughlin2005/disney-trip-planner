@@ -243,7 +243,7 @@ Why it fits: [Explanation of why this matches their preferences]
     console.log('========================================');
 
     const response = await openai.chat.completions.create({
-      model: 'o3-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -254,12 +254,14 @@ Why it fits: [Explanation of why this matches their preferences]
           content: finalUserPrompt
         }
       ],
-      max_completion_tokens: maxTokens
+      max_tokens: maxTokens
     });
 
     const content = response.choices[0]?.message?.content || '';
     
     console.log('OpenAI Response Content:', content);
+    console.log('OpenAI Response Length:', content.length);
+    console.log('OpenAI Response Choices:', response.choices?.length || 0);
     console.log('OpenAI Full Response:', JSON.stringify(response, null, 2));
     
     // Try to parse the AI response into multiple recommendations
