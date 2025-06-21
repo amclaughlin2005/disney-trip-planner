@@ -51,10 +51,10 @@ A comprehensive web application for planning your magical Disney vacation! This 
 
 ### 💾 Data Management
 - **Local Storage**: Automatic saving to your device
-- **Cloud Storage**: Optional Firebase integration for cross-device sync
+- **Cloud Storage**: Optional Vercel Blob integration for cross-device sync
 - **Export/Import**: Save trip data as JSON files
 - **No Account Required**: Works offline with local storage
-- **Cross-Device Sync**: Available with Firebase setup (see `firebase-setup.md`)
+- **Cross-Device Sync**: Available with Vercel Blob setup (see `vercel-blob-setup.md`)
 
 ## Getting Started
 
@@ -223,7 +223,7 @@ git remote -v
 - **Icons**: Lucide React
 - **Date Handling**: date-fns
 - **AI Integration**: OpenAI GPT-3.5-turbo API
-- **Storage**: Local Storage + Optional Firebase Firestore
+- **Storage**: Local Storage + Optional Vercel Blob
 - **Deployment**: GitHub + Vercel (automatic CI/CD)
 - **Build Tool**: Create React App
 

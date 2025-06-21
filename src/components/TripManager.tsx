@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Plus, FolderOpen, Download, Upload, Trash2, Cloud, CloudOff } from 'lucide-react';
 import { Trip, Resort, RESORTS } from '../types';
 import { createTrip, exportTrip, importTrip } from '../utils/tripStorage';
-import { storageService } from '../utils/cloudStorage';
+import { storageService, isCloudStorageConfigured } from '../utils/cloudStorage';
 import { formatDateSafe, getDaysBetween } from '../utils/dateUtils';
 
 interface TripManagerProps {
@@ -38,7 +38,7 @@ const TripManager: React.FC<TripManagerProps> = ({
     try {
       const savedTrips = await storageService.getTrips();
       setTrips(savedTrips);
-      setIsCloudConnected(true);
+      setIsCloudConnected(isCloudStorageConfigured());
     } catch (error) {
       console.error('Failed to load trips from cloud, falling back to local storage');
       // Fallback to local storage
@@ -142,7 +142,7 @@ const TripManager: React.FC<TripManagerProps> = ({
           {isCloudConnected ? (
             <>
               <Cloud size={16} className="text-green-600" />
-              <span className="text-green-600">Cloud storage connected</span>
+              <span className="text-green-600">Vercel Blob storage connected</span>
             </>
           ) : (
             <>

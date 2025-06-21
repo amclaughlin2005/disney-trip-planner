@@ -1,21 +1,12 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  setDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy,
-  serverTimestamp,
-  onSnapshot,
-  Unsubscribe
-} from 'firebase/firestore';
-import { db, isFirebaseConfigured as checkFirebaseConfig } from '../config/firebase';
+import { put, del, list } from '@vercel/blob';
 import { Trip } from '../types';
 
-const TRIPS_COLLECTION = 'trips';
+// Check if Vercel Blob is configured
+const isVercelBlobConfigured = (): boolean => {
+  return !!(process.env.REACT_APP_BLOB_READ_WRITE_TOKEN);
+};
+
+console.log(isVercelBlobConfigured() ? 'Vercel Blob configured' : 'Vercel Blob not configured - using local storage only');
 
 // User ID - for now we'll use a simple device-based ID
 // Later this can be replaced with actual user authentication
@@ -36,139 +27,166 @@ export interface CloudStorageService {
   subscribeToTrips: (callback: (trips: Trip[]) => void) => Unsubscribe;
 }
 
-// Firebase implementation
-export const firebaseStorage: CloudStorageService = {
+// Type for unsubscribe function
+export type Unsubscribe = () => void;
+
+// Vercel Blob implementation
+export const vercelBlobStorage: CloudStorageService = {
   async saveTrip(trip: Trip): Promise<void> {
-    if (!db) {
-      throw new Error('Firebase not initialized');
+    if (!isVercelBlobConfigured()) {
+      throw new Error('Vercel Blob not configured');
     }
     
     try {
       const deviceId = getDeviceId();
-      const tripDoc = doc(db, TRIPS_COLLECTION, trip.id);
-      
       const tripData = {
         ...trip,
         deviceId,
-        updatedAt: serverTimestamp(),
-        // Ensure createdAt exists
-        createdAt: trip.createdAt || serverTimestamp()
+        updatedAt: new Date().toISOString(),
+        createdAt: trip.createdAt || new Date().toISOString()
       };
       
-      await setDoc(tripDoc, tripData, { merge: true });
-      console.log('Trip saved to cloud:', trip.id);
+      // Store trip as JSON blob with device-specific path
+      const blobName = `trips/${deviceId}/${trip.id}.json`;
+      const blob = await put(blobName, JSON.stringify(tripData), {
+        access: 'public',
+        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+      });
+      
+      console.log('Trip saved to Vercel Blob:', trip.id, blob.url);
     } catch (error) {
-      console.error('Error saving trip to cloud:', error);
+      console.error('Error saving trip to Vercel Blob:', error);
       throw new Error('Failed to save trip to cloud storage');
     }
   },
 
   async getTrips(): Promise<Trip[]> {
-    if (!db) {
-      throw new Error('Firebase not initialized');
+    if (!isVercelBlobConfigured()) {
+      throw new Error('Vercel Blob not configured');
     }
     
     try {
       const deviceId = getDeviceId();
-      const tripsQuery = query(
-        collection(db, TRIPS_COLLECTION),
-        where('deviceId', '==', deviceId),
-        orderBy('updatedAt', 'desc')
-      );
+      const prefix = `trips/${deviceId}/`;
       
-      const querySnapshot = await getDocs(tripsQuery);
+      // List all trip files for this device
+      const { blobs } = await list({
+        prefix,
+        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+      });
+      
       const trips: Trip[] = [];
       
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        trips.push({
-          ...data,
-          id: doc.id,
-          // Convert Firestore timestamps to ISO strings
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
-        } as Trip);
+      // Fetch each trip file
+      for (const blob of blobs) {
+        try {
+          const response = await fetch(blob.url);
+          if (response.ok) {
+            const tripData = await response.json();
+            trips.push(tripData as Trip);
+          }
+        } catch (error) {
+          console.error('Error fetching trip blob:', blob.pathname, error);
+        }
+      }
+      
+      // Sort by updatedAt descending
+      trips.sort((a, b) => {
+        const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return bTime - aTime;
       });
       
       return trips;
     } catch (error) {
-      console.error('Error loading trips from cloud:', error);
+      console.error('Error loading trips from Vercel Blob:', error);
       throw new Error('Failed to load trips from cloud storage');
     }
   },
 
   async getTrip(id: string): Promise<Trip | null> {
-    if (!db) {
-      throw new Error('Firebase not initialized');
+    if (!isVercelBlobConfigured()) {
+      throw new Error('Vercel Blob not configured');
     }
     
     try {
-      const tripDoc = doc(db, TRIPS_COLLECTION, id);
-      const docSnap = await getDoc(tripDoc);
+      const deviceId = getDeviceId();
+      const blobName = `trips/${deviceId}/${id}.json`;
       
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        return {
-          ...data,
-          id: docSnap.id,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
-        } as Trip;
+      // List to check if the blob exists
+      const { blobs } = await list({
+        prefix: blobName,
+        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+      });
+      
+      if (blobs.length === 0) {
+        return null;
+      }
+      
+      // Fetch the trip data
+      const response = await fetch(blobs[0].url);
+      if (response.ok) {
+        const tripData = await response.json();
+        return tripData as Trip;
       }
       
       return null;
     } catch (error) {
-      console.error('Error loading trip from cloud:', error);
+      console.error('Error loading trip from Vercel Blob:', error);
       throw new Error('Failed to load trip from cloud storage');
     }
   },
 
   async deleteTrip(id: string): Promise<void> {
-    if (!db) {
-      throw new Error('Firebase not initialized');
+    if (!isVercelBlobConfigured()) {
+      throw new Error('Vercel Blob not configured');
     }
     
     try {
-      const tripDoc = doc(db, TRIPS_COLLECTION, id);
-      await deleteDoc(tripDoc);
-      console.log('Trip deleted from cloud:', id);
+      const deviceId = getDeviceId();
+      const blobName = `trips/${deviceId}/${id}.json`;
+      
+      await del(blobName, {
+        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+      });
+      
+      console.log('Trip deleted from Vercel Blob:', id);
     } catch (error) {
-      console.error('Error deleting trip from cloud:', error);
+      console.error('Error deleting trip from Vercel Blob:', error);
       throw new Error('Failed to delete trip from cloud storage');
     }
   },
 
   subscribeToTrips(callback: (trips: Trip[]) => void): Unsubscribe {
-    if (!db) {
-      throw new Error('Firebase not initialized');
-    }
+    // Vercel Blob doesn't have real-time subscriptions like Firestore
+    // We'll implement a polling mechanism
+    let intervalId: NodeJS.Timeout;
     
-    const deviceId = getDeviceId();
-    const tripsQuery = query(
-      collection(db, TRIPS_COLLECTION),
-      where('deviceId', '==', deviceId),
-      orderBy('updatedAt', 'desc')
-    );
-
-    return onSnapshot(tripsQuery, (querySnapshot) => {
-      const trips: Trip[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        trips.push({
-          ...data,
-          id: doc.id,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
-        } as Trip);
-      });
-      callback(trips);
-    }, (error) => {
-      console.error('Error in trips subscription:', error);
-    });
+    const pollTrips = async () => {
+      try {
+        const trips = await this.getTrips();
+        callback(trips);
+      } catch (error) {
+        console.error('Error in trips polling:', error);
+      }
+    };
+    
+    // Initial call
+    pollTrips();
+    
+    // Poll every 30 seconds
+    intervalId = setInterval(pollTrips, 30000);
+    
+    // Return unsubscribe function
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }
 };
 
-// Fallback to localStorage if Firebase is not configured
+// Fallback to localStorage if Vercel Blob is not configured
 export const localStorageService: CloudStorageService = {
   async saveTrip(trip: Trip): Promise<void> {
     const { saveTrip } = await import('./tripStorage');
@@ -198,7 +216,10 @@ export const localStorageService: CloudStorageService = {
   }
 };
 
-// Use the Firebase configuration check
-export const storageService: CloudStorageService = checkFirebaseConfig() 
-  ? firebaseStorage 
-  : localStorageService; 
+// Use Vercel Blob if configured, otherwise fallback to localStorage
+export const storageService: CloudStorageService = isVercelBlobConfigured() 
+  ? vercelBlobStorage 
+  : localStorageService;
+
+// Export configuration check for UI status
+export const isCloudStorageConfigured = isVercelBlobConfigured; 
