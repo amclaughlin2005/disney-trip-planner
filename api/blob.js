@@ -1,5 +1,3 @@
-const { put, list, del } = require('@vercel/blob');
-
 module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,6 +10,22 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // First, try to import the blob package
+    let put, list, del;
+    try {
+      const blobModule = require('@vercel/blob');
+      put = blobModule.put;
+      list = blobModule.list;
+      del = blobModule.del;
+      console.log('Successfully imported @vercel/blob');
+    } catch (importError) {
+      console.error('Failed to import @vercel/blob:', importError);
+      return res.status(500).json({ 
+        error: 'Failed to import @vercel/blob package',
+        details: importError.message 
+      });
+    }
+
     const { method, query } = req;
     const { action, deviceId, tripId } = query;
 
@@ -19,16 +33,19 @@ module.exports = async function handler(req, res) {
     console.log('API Route called:', { method, action, deviceId, tripId });
     console.log('Environment check:', {
       hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-      tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined'
+      hasReactAppBlobToken: !!process.env.REACT_APP_BLOB_READ_WRITE_TOKEN,
+      tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined',
+      reactAppTokenPrefix: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN ? process.env.REACT_APP_BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined'
     });
 
     switch (method) {
       case 'GET':
         if (action === 'list') {
-          // Check if we have the blob token
-          if (!process.env.BLOB_READ_WRITE_TOKEN) {
-            console.error('BLOB_READ_WRITE_TOKEN not found');
-            return res.status(500).json({ error: 'Blob storage not configured' });
+          // Check if we have either blob token
+          const token = process.env.BLOB_READ_WRITE_TOKEN || process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
+          if (!token) {
+            console.error('No blob token found');
+            return res.status(500).json({ error: 'Blob storage not configured - no token found' });
           }
 
           const prefix = deviceId ? `trips/${deviceId}/` : 'trips/';

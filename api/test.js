@@ -1,33 +1,37 @@
-export default async function handler(req, res) {
-  // Log environment variables (safely)
-  console.log('Environment check:');
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
-  console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0);
-  console.log('Request method:', req.method);
-  console.log('Request body:', req.body);
+module.exports = async function handler(req, res) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Test OpenAI import
-  try {
-    const OpenAI = require('openai');
-    console.log('OpenAI import successful');
-    
-    if (process.env.OPENAI_API_KEY) {
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
-      console.log('OpenAI client created successfully');
-    } else {
-      console.log('OPENAI_API_KEY not found');
-    }
-  } catch (error) {
-    console.error('OpenAI import/creation failed:', error);
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
-  return res.json({
-    status: 'Test endpoint working',
-    hasApiKey: !!process.env.OPENAI_API_KEY,
-    keyLength: process.env.OPENAI_API_KEY?.length || 0,
-    nodeEnv: process.env.NODE_ENV
-  });
-} 
+  try {
+    // Test basic functionality
+    const envCheck = {
+      nodeVersion: process.version,
+      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
+      hasReactAppBlobToken: !!process.env.REACT_APP_BLOB_READ_WRITE_TOKEN,
+      blobTokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? 
+        process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined',
+      reactAppBlobTokenPrefix: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN ? 
+        process.env.REACT_APP_BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined',
+      allEnvKeys: Object.keys(process.env).filter(key => key.includes('BLOB')),
+      method: req.method,
+      query: req.query,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('Test API called:', envCheck);
+    res.status(200).json({ success: true, data: envCheck });
+  } catch (error) {
+    console.error('Test API error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+}; 
