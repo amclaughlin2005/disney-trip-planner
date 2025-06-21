@@ -42,19 +42,9 @@ const TripManager: React.FC<TripManagerProps> = ({
       setIsCloudConnected(isCloudStorageConfigured());
       console.log(`Loaded ${savedTrips.length} trips successfully`);
     } catch (error) {
-      console.error('Failed to load trips from cloud, falling back to local storage:', error);
-      // Fallback to local storage
-      try {
-        const { getTrips } = await import('../utils/tripStorage');
-        const localTrips = getTrips();
-        setTrips(localTrips);
-        setIsCloudConnected(false);
-        console.log(`Loaded ${localTrips.length} trips from local storage`);
-      } catch (localError) {
-        console.error('Failed to load trips from local storage:', localError);
-        setTrips([]);
-        setIsCloudConnected(false);
-      }
+      console.error('Failed to load trips:', error);
+      setTrips([]);
+      setIsCloudConnected(false);
     } finally {
       setIsLoading(false);
     }
