@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown } from 'lucide-react';
-import { AppUser, UserAccount, AccountUser, USER_ROLES } from '../types';
+import { AppUser, UserAccount } from '../types';
 
 // This would normally come from your backend API
 // For now, we'll simulate it with localStorage
-const SUPER_ADMIN_EMAIL = 'your-email@example.com'; // Replace with your email
+const SUPER_ADMIN_EMAIL = 'amclaughlin2005@gmail.com'; // Replace with your email
 
 const AdminPanel: React.FC = () => {
   const { user } = useUser();

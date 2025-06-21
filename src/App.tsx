@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Plus, List, Grid, Bot, Crown, Settings } from 'lucide-react';
+import { Calendar, Plus, List, Grid, Bot, Crown } from 'lucide-react';
 import { Trip, TripDay, Park } from './types';
 import { storageService } from './utils/cloudStorage';
 import TripDayCard from './components/TripDayCard';
@@ -19,7 +19,6 @@ function AppContent() {
     appUser,
     userAccount,
     loading: userLoading,
-    isSuperAdmin,
     canAccessAdmin,
     needsAccount,
     hasPermission
@@ -30,7 +29,8 @@ function AppContent() {
   const [showAddDayModal, setShowAddDayModal] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [viewMode, setViewMode] = useState<'detailed' | 'agenda'>('detailed');
-  const [currentView, setCurrentView] = useState<'trips' | 'admin' | 'account-setup'>('trips');
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [needsAccountSetup, setNeedsAccountSetup] = useState(false);
 
   // Update trip days when current trip changes
   useEffect(() => {
@@ -57,11 +57,11 @@ function AppContent() {
     if (userLoading) return;
 
     if (needsAccount()) {
-      setCurrentView('account-setup');
-    } else if (currentView === 'account-setup' && !needsAccount()) {
-      setCurrentView('trips');
+      setNeedsAccountSetup(true);
+    } else if (needsAccountSetup && !needsAccount()) {
+      setNeedsAccountSetup(false);
     }
-  }, [userLoading, needsAccount, currentView]);
+  }, [userLoading, needsAccount, needsAccountSetup]);
 
   const handleTripSelect = (trip: Trip) => {
     setCurrentTrip(trip);
@@ -80,23 +80,33 @@ function AppContent() {
     }
   };
 
-  const handleAddDay = (day: TripDay) => {
+  const handleAddDay = (date: Date, park: Park | null) => {
     if (!hasPermission('trips:update')) {
       alert('You do not have permission to modify trips.');
       return;
     }
 
-    setTripDays(prev => [...prev, day]);
+    const newDay: TripDay = {
+      id: `day-${Date.now()}`,
+      date: format(date, 'yyyy-MM-dd'),
+      park,
+      transportation: [],
+      rides: [],
+      reservations: [],
+      food: [],
+    };
+    
+    setTripDays(prev => [...prev, newDay].sort((a, b) => a.date.localeCompare(b.date)));
     setShowAddDayModal(false);
   };
 
-  const handleUpdateDay = (updatedDay: TripDay) => {
+  const handleUpdateDay = (dayId: string, updates: Partial<TripDay>) => {
     if (!hasPermission('trips:update')) {
       alert('You do not have permission to modify trips.');
       return;
     }
 
-    setTripDays(prev => prev.map(day => day.id === updatedDay.id ? updatedDay : day));
+    setTripDays(prev => prev.map(day => day.id === dayId ? { ...day, ...updates } : day));
   };
 
   const handleDeleteDay = (dayId: string) => {
@@ -122,12 +132,12 @@ function AppContent() {
   }
 
   // Show account setup if user needs one
-  if (currentView === 'account-setup') {
+  if (needsAccountSetup) {
     return <AccountSetup />;
   }
 
   // Show admin panel for super admins
-  if (currentView === 'admin') {
+  if (showAdmin) {
     return <AdminPanel />;
   }
 
@@ -149,17 +159,17 @@ function AppContent() {
         <div className="flex items-center space-x-2">
           {canAccessAdmin() && (
             <button
-              onClick={() => setCurrentView(currentView === 'admin' ? 'trips' : 'admin')}
+              onClick={() => setShowAdmin(!showAdmin)}
               className="flex items-center space-x-2 px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
             >
               <Crown size={16} />
-              <span>{currentView === 'admin' ? 'Back to Trips' : 'Admin Panel'}</span>
+              <span>{showAdmin ? 'Back to Trips' : 'Admin Panel'}</span>
             </button>
           )}
         </div>
       </div>
 
-      {currentView === 'trips' && (
+      {!showAdmin && !needsAccountSetup && (
         <>
           <Header />
 
@@ -260,7 +270,7 @@ function AppContent() {
                     <TripDayCard
                       key={day.id}
                       day={day}
-                      onUpdate={handleUpdateDay}
+                                             onUpdate={(updates: Partial<TripDay>) => handleUpdateDay(day.id, updates)}
                       onDelete={() => handleDeleteDay(day.id)}
                       // canEdit={hasPermission('trips:update')}
                       // canDelete={hasPermission('trips:delete')}
@@ -294,7 +304,7 @@ function AppContent() {
             <AddDayModal
               onAdd={handleAddDay}
               onClose={() => setShowAddDayModal(false)}
-              existingDays={tripDays}
+              existingDates={tripDays.map(day => new Date(day.date + 'T00:00:00'))}
             />
           )}
 

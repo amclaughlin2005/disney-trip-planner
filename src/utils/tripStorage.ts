@@ -82,7 +82,10 @@ export const createTrip = (
     resort,
     days,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    accountId: 'default-account', // Will be updated when saved
+    createdBy: 'unknown', // Will be updated when saved
+    isPublic: false
   };
   
   return trip;
