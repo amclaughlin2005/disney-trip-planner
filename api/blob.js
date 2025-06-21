@@ -33,9 +33,7 @@ module.exports = async function handler(req, res) {
     console.log('API Route called:', { method, action, deviceId, tripId });
     console.log('Environment check:', {
       hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-      hasReactAppBlobToken: !!process.env.REACT_APP_BLOB_READ_WRITE_TOKEN,
-      tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined',
-      reactAppTokenPrefix: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN ? process.env.REACT_APP_BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined'
+      tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined'
     });
 
     switch (method) {

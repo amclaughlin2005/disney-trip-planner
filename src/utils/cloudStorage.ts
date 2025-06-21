@@ -1,43 +1,25 @@
 import { Trip } from '../types';
 
 // Check if Vercel Blob is configured and we're in production
-// Get the Vercel Blob token from environment
+// Check if Vercel Blob is configured via API route
 const getBlobToken = (): string | undefined => {
-  // In production, Vercel automatically provides BLOB_READ_WRITE_TOKEN
-  // In development, we use REACT_APP_BLOB_READ_WRITE_TOKEN
-  // Note: React apps can only access REACT_APP_ prefixed variables in the browser
-  // But Vercel Blob should work with server-side environment variables
-  const productionToken = process.env.BLOB_READ_WRITE_TOKEN;
-  const devToken = process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
-  
-  console.log('Environment variable check:', {
-    NODE_ENV: process.env.NODE_ENV,
-    hasBLOB_READ_WRITE_TOKEN: !!productionToken,
-    hasREACT_APP_BLOB_READ_WRITE_TOKEN: !!devToken,
-    productionTokenPrefix: productionToken ? productionToken.substring(0, 15) + '...' : 'undefined',
-    devTokenPrefix: devToken ? devToken.substring(0, 15) + '...' : 'undefined'
-  });
-  
-  return productionToken || devToken;
+  // Since we're using API routes, we don't need client-side tokens
+  // The API route handles the BLOB_READ_WRITE_TOKEN server-side
+  // We just need to check if we're in production where the API route works
+  return process.env.NODE_ENV === 'production' ? 'api-route-available' : undefined;
 };
 
 const isVercelBlobConfigured = (): boolean => {
-  // Vercel Blob only works in production due to CORS restrictions
+  // Vercel Blob works via API routes in production
   const isProduction = process.env.NODE_ENV === 'production';
   const token = getBlobToken();
-  const hasValidToken = !!(token && token.startsWith('vercel_blob_rw_'));
-  const isConfigured = isProduction && hasValidToken;
+  const isConfigured = isProduction && !!token;
   
   console.log('Vercel Blob configuration check:', {
     isProduction,
-    hasValidToken: hasValidToken ? `${token!.substring(0, 20)}...` : 'No token',
-    tokenSource: process.env.BLOB_READ_WRITE_TOKEN ? 'BLOB_READ_WRITE_TOKEN' : 
-                process.env.REACT_APP_BLOB_READ_WRITE_TOKEN ? 'REACT_APP_BLOB_READ_WRITE_TOKEN' : 'No token found',
+    hasApiRoute: !!token,
     isConfigured,
-    allEnvVars: Object.keys(process.env).filter(key => key.includes('BLOB')).reduce((acc, key) => {
-      acc[key] = process.env[key] ? 'present' : 'missing';
-      return acc;
-    }, {} as Record<string, string>)
+    mode: 'API route (server-side BLOB_READ_WRITE_TOKEN)'
   });
   
   return isConfigured;

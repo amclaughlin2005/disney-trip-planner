@@ -14,15 +14,13 @@ module.exports = async function handler(req, res) {
     const envCheck = {
       nodeVersion: process.version,
       hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-      hasReactAppBlobToken: !!process.env.REACT_APP_BLOB_READ_WRITE_TOKEN,
       blobTokenPrefix: process.env.BLOB_READ_WRITE_TOKEN ? 
         process.env.BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined',
-      reactAppBlobTokenPrefix: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN ? 
-        process.env.REACT_APP_BLOB_READ_WRITE_TOKEN.substring(0, 15) + '...' : 'undefined',
       allEnvKeys: Object.keys(process.env).filter(key => key.includes('BLOB')),
       method: req.method,
       query: req.query,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      note: 'Only BLOB_READ_WRITE_TOKEN needed for API route approach'
     };
 
     console.log('Test API called:', envCheck);
