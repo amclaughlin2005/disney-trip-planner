@@ -211,9 +211,13 @@ Create an encouraging summary highlighting what makes this trip special and any 
       
       // Load prompts from localStorage or initialize with defaults
       const savedPrompts = localStorage.getItem('ai-prompts');
+      console.log('Admin Panel: Loading prompts from localStorage:', savedPrompts);
       if (savedPrompts) {
-        setPrompts(JSON.parse(savedPrompts));
+        const parsedPrompts = JSON.parse(savedPrompts);
+        console.log('Admin Panel: Found saved prompts:', parsedPrompts.length);
+        setPrompts(parsedPrompts);
       } else {
+        console.log('Admin Panel: No saved prompts found, initializing with defaults');
         setPrompts(defaultPrompts);
         localStorage.setItem('ai-prompts', JSON.stringify(defaultPrompts));
       }
@@ -456,8 +460,10 @@ Create an encouraging summary highlighting what makes this trip special and any 
 
   // Prompt management functions
   const savePrompts = (updatedPrompts: AIPrompt[]) => {
+    console.log('Admin Panel: Saving prompts to localStorage:', updatedPrompts);
     localStorage.setItem('ai-prompts', JSON.stringify(updatedPrompts));
     setPrompts(updatedPrompts);
+    console.log('Admin Panel: Prompts saved and state updated');
   };
 
   const handleEditPrompt = (prompt: AIPrompt) => {
@@ -468,12 +474,14 @@ Create an encouraging summary highlighting what makes this trip special and any 
   const handleSavePrompt = () => {
     if (!editingPrompt) return;
 
+    console.log('Admin Panel: Saving edited prompt:', editingPrompt);
     const updatedPrompts = prompts.map(p => 
       p.id === editingPrompt.id 
         ? { ...editingPrompt, lastModified: new Date().toISOString() }
         : p
     );
     
+    console.log('Admin Panel: Updated prompts array:', updatedPrompts);
     savePrompts(updatedPrompts);
     setShowPromptEditor(false);
     setEditingPrompt(null);
