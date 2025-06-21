@@ -86,8 +86,7 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
           content: prompt
         }
       ],
-      max_completion_tokens: 1000,
-      temperature: 0.7
+      max_completion_tokens: 1000
     });
 
     return res.json({ 
@@ -141,8 +140,7 @@ Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
           content: prompt
         }
       ],
-      max_completion_tokens: 800,
-      temperature: 0.5
+      max_completion_tokens: 800
     });
 
     const content = response.choices[0]?.message?.content || '';
@@ -197,8 +195,7 @@ Provide 3-5 specific restaurant recommendations with reasons why they fit the cr
           content: prompt
         }
       ],
-      max_completion_tokens: 600,
-      temperature: 0.7
+      max_completion_tokens: 600
     });
 
     const content = response.choices[0]?.message?.content || '';
@@ -249,8 +246,7 @@ Recommend 5-8 attractions with timing strategies and Lightning Lane recommendati
           content: prompt
         }
       ],
-      max_completion_tokens: 600,
-      temperature: 0.7
+      max_completion_tokens: 600
     });
 
     const content = response.choices[0]?.message?.content || '';
@@ -303,8 +299,7 @@ Create an encouraging summary highlighting what makes this trip special and any 
           content: prompt
         }
       ],
-      max_completion_tokens: 300,
-      temperature: 0.8
+      max_completion_tokens: 300
     });
 
     return res.json({ 
