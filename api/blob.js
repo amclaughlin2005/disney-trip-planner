@@ -84,33 +84,67 @@ module.exports = async function handler(req, res) {
 
       case 'POST':
         if (action === 'save') {
+          console.log('Processing save request...');
+          console.log('Request body type:', typeof req.body);
+          console.log('Request body present:', !!req.body);
+          
           // Parse request body
           let bodyText = '';
-          if (req.body) {
-            bodyText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-          } else {
-            // Read from stream if body is not parsed
-            const chunks = [];
-            for await (const chunk of req) {
-              chunks.push(chunk);
+          let trip;
+          
+          try {
+            if (req.body) {
+              bodyText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+              console.log('Body from req.body, length:', bodyText.length);
+            } else {
+              // Read from stream if body is not parsed
+              console.log('Reading body from stream...');
+              const chunks = [];
+              for await (const chunk of req) {
+                chunks.push(chunk);
+              }
+              bodyText = Buffer.concat(chunks).toString();
+              console.log('Body from stream, length:', bodyText.length);
             }
-            bodyText = Buffer.concat(chunks).toString();
+            
+            console.log('Parsing JSON...');
+            trip = JSON.parse(bodyText);
+            console.log('Trip parsed successfully, ID:', trip.id, 'Name:', trip.name);
+            
+          } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            console.error('Body text preview:', bodyText.substring(0, 200));
+            return res.status(400).json({ 
+              error: 'Invalid JSON in request body',
+              details: parseError.message 
+            });
           }
           
-          const trip = JSON.parse(bodyText);
-          const tripData = {
-            ...trip,
-            deviceId,
-            updatedAt: new Date().toISOString(),
-            createdAt: trip.createdAt || new Date().toISOString()
-          };
-          
-          const blobName = `trips/${deviceId}/${trip.id}.json`;
-          const blob = await put(blobName, JSON.stringify(tripData), {
-            access: 'public'
-          });
-          
-          res.status(200).json({ success: true, url: blob.url });
+          try {
+            const tripData = {
+              ...trip,
+              deviceId,
+              updatedAt: new Date().toISOString(),
+              createdAt: trip.createdAt || new Date().toISOString()
+            };
+            
+            const blobName = `trips/${deviceId}/${trip.id}.json`;
+            console.log('Saving to blob:', blobName);
+            
+            const blob = await put(blobName, JSON.stringify(tripData), {
+              access: 'public'
+            });
+            
+            console.log('Save successful:', blob.url);
+            res.status(200).json({ success: true, url: blob.url });
+            
+          } catch (saveError) {
+            console.error('Blob save error:', saveError);
+            return res.status(500).json({ 
+              error: 'Failed to save to blob storage',
+              details: saveError.message 
+            });
+          }
         } else {
           res.status(400).json({ error: 'Invalid action' });
         }
