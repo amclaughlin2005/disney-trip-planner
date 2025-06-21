@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Plus, FolderOpen, Download, Upload, Trash2, Cloud, CloudOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, MapPin, Plus, FolderOpen, Download, Upload, Trash2, Cloud, CloudOff, Crown } from 'lucide-react';
 import { Trip, Resort, RESORTS } from '../types';
 import { createTrip, exportTrip, importTrip, getTripsForUser } from '../utils/tripStorage';
 import { storageService, isCloudStorageConfigured } from '../utils/cloudStorage';
@@ -18,6 +19,7 @@ const TripManager: React.FC<TripManagerProps> = ({
   onTripCreate,
 }) => {
   const { appUser, userAccount } = useUserManagement();
+  const navigate = useNavigate();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTripList, setShowTripList] = useState(false);
@@ -195,7 +197,7 @@ const TripManager: React.FC<TripManagerProps> = ({
 
   return (
     <div className="relative">
-      {/* Cloud Status */}
+      {/* Header with Cloud Status and Admin Access */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2 text-sm">
           {isCloudConnected ? (
@@ -213,6 +215,17 @@ const TripManager: React.FC<TripManagerProps> = ({
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-disney-blue"></div>
           )}
         </div>
+        
+        {/* Admin Panel Access for Super Admins */}
+        {appUser?.isSuperAdmin && (
+          <button
+            onClick={() => navigate('/admin')}
+            className="flex items-center space-x-2 px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors text-sm font-medium"
+          >
+            <Crown size={16} />
+            <span>Admin Panel</span>
+          </button>
+        )}
       </div>
 
       {/* Trip Actions */}

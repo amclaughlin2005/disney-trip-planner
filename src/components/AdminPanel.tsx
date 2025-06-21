@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut, ArrowLeft } from 'lucide-react';
 import { AppUser, UserAccount } from '../types';
 import { useUserManagement } from '../hooks/useUserManagement';
 
@@ -21,7 +22,7 @@ interface AssignUserForm {
   role: string;
 }
 
-const AdminPanel: React.FC = () => {
+export const AdminPanel: React.FC = () => {
   const { user } = useUser();
   const {
     getAllUsers,
@@ -39,6 +40,7 @@ const AdminPanel: React.FC = () => {
     stopImpersonation,
     switchToAccount
   } = useUserManagement();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'impersonation' | 'settings'>('users');
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -330,36 +332,39 @@ const AdminPanel: React.FC = () => {
           <div className="flex items-center space-x-3">
             <Crown className="h-8 w-8 text-yellow-500" />
             <div>
-              <button
-                onClick={() => window.location.href = window.location.origin}
-                className="text-2xl font-bold text-gray-900 hover:text-disney-blue transition-colors cursor-pointer text-left"
-                title="Return to Disney Trip Planner"
-              >
-                Disney Trip Planner
-              </button>
+              <h1 className="text-2xl font-bold text-gray-900">Disney Trip Planner</h1>
               <p className="text-sm text-gray-500 mt-1">Super Admin Panel</p>
             </div>
           </div>
-          {isImpersonating && (
-            <div className="flex items-center space-x-2">
-              <div className="bg-orange-100 border border-orange-300 rounded-lg px-4 py-2">
-                <div className="flex items-center space-x-2">
-                  <Eye className="h-4 w-4 text-orange-600" />
-                  <span className="text-sm font-medium text-orange-800">
-                    Impersonating: {impersonatedUser?.name || 'Unknown User'}
-                    {impersonatedAccount && ` (${impersonatedAccount.name})`}
-                  </span>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center space-x-2 px-4 py-2 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Trip Planner</span>
+            </button>
+            {isImpersonating && (
+              <div className="flex items-center space-x-2">
+                <div className="bg-orange-100 border border-orange-300 rounded-lg px-4 py-2">
+                  <div className="flex items-center space-x-2">
+                    <Eye className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-orange-800">
+                      Impersonating: {impersonatedUser?.name || 'Unknown User'}
+                      {impersonatedAccount && ` (${impersonatedAccount.name})`}
+                    </span>
+                  </div>
                 </div>
+                <button
+                  onClick={handleStopImpersonation}
+                  className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Stop Impersonating</span>
+                </button>
               </div>
-              <button
-                onClick={handleStopImpersonation}
-                className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Stop Impersonating</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <p className="text-gray-600">
           Manage users, accounts, and system settings
@@ -993,6 +998,4 @@ const AdminPanel: React.FC = () => {
       )}
     </div>
   );
-};
-
-export default AdminPanel; 
+}; 
