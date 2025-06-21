@@ -2,16 +2,24 @@ import { put, del, list } from '@vercel/blob';
 import { Trip } from '../types';
 
 // Check if Vercel Blob is configured and we're in production
+// Get the Vercel Blob token from environment
+const getBlobToken = (): string | undefined => {
+  // In production, Vercel automatically provides BLOB_READ_WRITE_TOKEN
+  // In development, we use REACT_APP_BLOB_READ_WRITE_TOKEN
+  return process.env.BLOB_READ_WRITE_TOKEN || process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
+};
+
 const isVercelBlobConfigured = (): boolean => {
   // Vercel Blob only works in production due to CORS restrictions
   const isProduction = process.env.NODE_ENV === 'production';
-  const token = process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
+  const token = getBlobToken();
   const hasValidToken = !!(token && token.startsWith('vercel_blob_rw_'));
   const isConfigured = isProduction && hasValidToken;
   
   console.log('Vercel Blob configuration check:', {
     isProduction,
     hasValidToken: hasValidToken ? `${token!.substring(0, 20)}...` : 'No token',
+    tokenSource: process.env.BLOB_READ_WRITE_TOKEN ? 'BLOB_READ_WRITE_TOKEN' : 'REACT_APP_BLOB_READ_WRITE_TOKEN',
     isConfigured
   });
   
@@ -73,7 +81,7 @@ export const vercelBlobStorage: CloudStorageService = {
       const blob = await withTimeout(
         put(blobName, JSON.stringify(tripData), {
           access: 'public',
-          token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+          token: getBlobToken()!
         }),
         10000 // 10 second timeout
       );
@@ -100,7 +108,7 @@ export const vercelBlobStorage: CloudStorageService = {
       const { blobs } = await withTimeout(
         list({
           prefix,
-          token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+          token: getBlobToken()!
         }),
         10000 // 10 second timeout
       );
@@ -149,7 +157,7 @@ export const vercelBlobStorage: CloudStorageService = {
       // List to check if the blob exists
       const { blobs } = await list({
         prefix: blobName,
-        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+        token: getBlobToken()!
       });
       
       if (blobs.length === 0) {
@@ -180,7 +188,7 @@ export const vercelBlobStorage: CloudStorageService = {
       const blobName = `trips/${deviceId}/${id}.json`;
       
       await del(blobName, {
-        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+        token: getBlobToken()!
       });
       
       console.log('Trip deleted from Vercel Blob:', id);
