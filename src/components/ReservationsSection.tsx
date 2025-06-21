@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit3, Clock, Users, MapPin } from 'lucide-react';
+import { Plus, Trash2, Edit3, Clock, Users } from 'lucide-react';
 import { Reservation, RESERVATION_TYPES } from '../types';
 
 interface ReservationsSectionProps {

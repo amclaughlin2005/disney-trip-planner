@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Car, Utensils, FerrisWheel, Clock, MapPin, Users, DollarSign, Zap } from 'lucide-react';
-import { TripDay, Park, Transportation, Ride, Food, TRANSPORTATION_TYPES, FOOD_TYPES } from '../types';
+import { TripDay, Transportation, Ride, Food, TRANSPORTATION_TYPES, FOOD_TYPES } from '../types';
 import { DINING_LOCATIONS } from '../data/dining';
 import { ATTRACTIONS } from '../data/attractions';
 

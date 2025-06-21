@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit3, FerrisWheel, Clock, Star, Search, Filter } from 'lucide-react';
+import { Plus, Trash2, Edit3, FerrisWheel, Clock, Star, Search } from 'lucide-react';
 import { Ride, RIDE_TYPES, Park } from '../types';
-import { ATTRACTIONS, Attraction, ATTRACTION_TYPES, THRILL_LEVELS, ATTRACTION_TAGS } from '../data/attractions';
+import { ATTRACTIONS, Attraction, ATTRACTION_TYPES, THRILL_LEVELS } from '../data/attractions';
 
 interface RidesSectionProps {
   rides: Ride[];

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Plus, FolderOpen, Download, Upload, Trash2, Cloud, CloudOff } from 'lucide-react';
 import { Trip, Resort, RESORTS } from '../types';
-import { saveTrip as saveLocalTrip, createTrip, exportTrip, importTrip } from '../utils/tripStorage';
+import { createTrip, exportTrip, importTrip } from '../utils/tripStorage';
 import { storageService } from '../utils/cloudStorage';
 import { formatDateSafe, getDaysBetween } from '../utils/dateUtils';
 

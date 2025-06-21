@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit3, Car, Clock, MapPin } from 'lucide-react';
+import { Plus, Trash2, Edit3, Car, Clock } from 'lucide-react';
 import { Transportation, TRANSPORTATION_TYPES } from '../types';
 
 interface TransportationSectionProps {

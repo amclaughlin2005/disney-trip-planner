@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit3, Utensils, Clock, DollarSign, Search, Filter } from 'lucide-react';
+import { Plus, Trash2, Edit3, Utensils, Clock, DollarSign, Search } from 'lucide-react';
 import { Food, FOOD_TYPES, Park } from '../types';
 import { DINING_LOCATIONS, DiningLocation, CUISINE_TYPES, MEAL_TYPES, DINING_PLAN_TYPES } from '../data/dining';
 
