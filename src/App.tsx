@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Crown } from 'lucide-react';
@@ -23,6 +23,15 @@ const MainApp: React.FC = () => {
 
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
   const navigate = useNavigate();
+
+  // Debug logging
+  useEffect(() => {
+    if (appUser) {
+      console.log('Debug - appUser:', appUser);
+      console.log('Debug - appUser.isSuperAdmin:', appUser.isSuperAdmin);
+      console.log('Debug - appUser.email:', appUser.email);
+    }
+  }, [appUser]);
 
   // Show account setup if user exists but no app user profile
   if (clerkUser && !appUser) {
@@ -49,13 +58,31 @@ const MainApp: React.FC = () => {
           {/* Admin Panel Access for Super Admins */}
           {appUser.isSuperAdmin && (
             <button
-              onClick={() => navigate('/admin')}
+              onClick={() => {
+                alert('Button clicked! Navigating to admin...');
+                console.log('Admin panel button clicked!');
+                console.log('User is super admin:', appUser.isSuperAdmin);
+                console.log('Attempting to navigate to /admin');
+                try {
+                  navigate('/admin');
+                } catch (error) {
+                  console.error('Navigation failed:', error);
+                  // Fallback to window.location
+                  window.location.href = '/admin';
+                }
+              }}
               className="flex items-center justify-center space-x-2 w-full px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
             >
               <Crown className="h-5 w-5" />
               <span>Access Admin Panel</span>
             </button>
           )}
+          
+          {/* Show debug info */}
+          <div className="mt-4 text-xs text-gray-400">
+            Debug: isSuperAdmin = {String(appUser.isSuperAdmin)}
+          </div>
         </div>
       </div>
     );
