@@ -42,10 +42,11 @@ A comprehensive web application for planning your magical Disney vacation! This 
 - Food: Orange
 
 ### 💾 Data Management
-- Automatic local storage saving
-- Export trip data as JSON
-- Import previously saved trips
-- No account required - everything stays on your device
+- **Local Storage**: Automatic saving to your device
+- **Cloud Storage**: Optional Firebase integration for cross-device sync
+- **Export/Import**: Save trip data as JSON files
+- **No Account Required**: Works offline with local storage
+- **Cross-Device Sync**: Available with Firebase setup (see `firebase-setup.md`)
 
 ## Getting Started
 
@@ -79,6 +80,80 @@ To create a production build:
 ```bash
 npm run build
 ```
+
+## Deployment
+
+This app is set up with automatic deployment via GitHub and Netlify.
+
+### 🚀 Deploying Updates
+
+When you make changes to the app, follow these simple steps to deploy:
+
+1. **Stage your changes:**
+   ```bash
+   git add .
+   ```
+
+2. **Commit with a descriptive message:**
+   ```bash
+   git commit -m "Description of your changes"
+   ```
+
+3. **Push to GitHub:**
+   ```bash
+   git push
+   ```
+
+4. **Automatic deployment:** Netlify will automatically detect the push and deploy your changes (usually takes 2-3 minutes)
+
+### 📋 Example Deployment Workflow
+
+```bash
+# After making changes to your code
+git add .
+git commit -m "Added new Disney park selection feature"
+git push
+
+# Netlify will automatically:
+# 1. Detect the GitHub push
+# 2. Run npm install
+# 3. Run npm run build  
+# 4. Deploy to your live site
+```
+
+### 🔗 Repository & Deployment Links
+
+- **GitHub Repository**: https://github.com/amclaughlin2005/disney-trip-planner
+- **Live Site**: Your Netlify URL (check your Netlify dashboard)
+
+### 🛠️ Common Deployment Commands
+
+```bash
+# Quick update
+git add . && git commit -m "Quick fixes" && git push
+
+# Feature update
+git add . && git commit -m "Added cloud storage support" && git push
+
+# Bug fix
+git add . && git commit -m "Fixed date parsing issues" && git push
+
+# Check current status
+git status
+
+# View commit history
+git log --oneline
+
+# Check remote repository
+git remote -v
+```
+
+### 📊 Monitoring Deployments
+
+- **Netlify Dashboard**: Monitor build status and deployment logs
+- **GitHub**: View commit history and repository activity
+- **Build Time**: Typically 2-3 minutes for full deployment
+- **Build Status**: Check for any errors in Netlify deploy logs
 
 ## How to Use
 
@@ -128,7 +203,9 @@ npm run build
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Date Handling**: date-fns
-- **Storage**: Local Storage
+- **Storage**: Local Storage + Optional Firebase Firestore
+- **Deployment**: GitHub + Netlify (automatic CI/CD)
+- **Build Tool**: Create React App
 
 ## Browser Support
 
