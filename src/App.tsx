@@ -52,22 +52,6 @@ const MainApp: React.FC = () => {
     }
   }, [currentTrip]);
 
-  // Save trip data whenever trip days change
-  useEffect(() => {
-    if (currentTrip && tripDays.length >= 0) {
-      const updatedTrip = {
-        ...currentTrip,
-        days: tripDays,
-      };
-      
-      // Update the current trip state
-      setCurrentTrip(updatedTrip);
-      
-      // Save to storage
-      storageService.saveTrip(updatedTrip).catch(console.error);
-    }
-  }, [tripDays, currentTrip?.id]); // Only depend on tripDays and trip ID to avoid infinite loops
-
   // Show account setup if user exists but no app user profile
   if (clerkUser && !appUser) {
     return <AccountSetup />;
@@ -175,17 +159,42 @@ const MainApp: React.FC = () => {
       food: [],
     };
     
-    setTripDays(prev => [...prev, newDay].sort((a, b) => a.date.localeCompare(b.date)));
+    const newTripDays = [...tripDays, newDay].sort((a, b) => a.date.localeCompare(b.date));
+    setTripDays(newTripDays);
+    
+    // Update currentTrip and save
+    if (currentTrip) {
+      const updatedTrip = { ...currentTrip, days: newTripDays };
+      setCurrentTrip(updatedTrip);
+      storageService.saveTrip(updatedTrip).catch(console.error);
+    }
+    
     setShowAddDayModal(false);
   };
 
   const handleUpdateDay = (dayId: string, updates: Partial<TripDay>) => {
-    setTripDays(prev => prev.map(day => day.id === dayId ? { ...day, ...updates } : day));
+    const newTripDays = tripDays.map(day => day.id === dayId ? { ...day, ...updates } : day);
+    setTripDays(newTripDays);
+    
+    // Update currentTrip and save
+    if (currentTrip) {
+      const updatedTrip = { ...currentTrip, days: newTripDays };
+      setCurrentTrip(updatedTrip);
+      storageService.saveTrip(updatedTrip).catch(console.error);
+    }
   };
 
   const handleDeleteDay = (dayId: string) => {
     if (window.confirm('Are you sure you want to delete this day?')) {
-      setTripDays(prev => prev.filter(day => day.id !== dayId));
+      const newTripDays = tripDays.filter(day => day.id !== dayId);
+      setTripDays(newTripDays);
+      
+      // Update currentTrip and save
+      if (currentTrip) {
+        const updatedTrip = { ...currentTrip, days: newTripDays };
+        setCurrentTrip(updatedTrip);
+        storageService.saveTrip(updatedTrip).catch(console.error);
+      }
     }
   };
 
