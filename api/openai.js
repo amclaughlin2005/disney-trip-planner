@@ -127,7 +127,7 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
 
 async function handleDayOptimization(req, res, data) {
   try {
-    const { day, preferences, prompt } = data;
+    const { day, preferences, prompt: customPrompt } = data;
     
     const activities = [
       ...day.rides.map(r => `Ride: ${r.name}`),
@@ -135,7 +135,7 @@ async function handleDayOptimization(req, res, data) {
       ...day.reservations.map(r => `Reservation: ${r.name} at ${r.time}`)
     ];
 
-    const prompt = `Optimize this Disney park day plan:
+    const promptText = `Optimize this Disney park day plan:
 
 Park: ${day.park?.name || 'Not specified'}
 Current Activities: ${activities.join(', ')}
@@ -162,7 +162,7 @@ Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
         },
         {
           role: 'user',
-          content: prompt
+          content: promptText
         }
       ],
       max_completion_tokens: 800
@@ -194,7 +194,8 @@ Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
 
 async function handleDiningSuggestions(req, res, data) {
   try {
-    const { preferences, prompt } = data;
+    console.log('Dining suggestions data received:', JSON.stringify(data, null, 2));
+    const { preferences, prompt: customPrompt } = data;
     
     // Use custom prompt if provided, otherwise fall back to default
     let systemMessage = 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.';
@@ -211,23 +212,23 @@ Preferences:
 Provide 3-5 specific restaurant recommendations with reasons why they fit the criteria.`;
 
     // Use custom prompt if provided
-    if (prompt && prompt.systemMessage) {
-      systemMessage = prompt.systemMessage;
+    if (customPrompt && customPrompt.systemMessage) {
+      systemMessage = customPrompt.systemMessage;
     }
-    if (prompt && prompt.userPromptTemplate) {
-      userPromptTemplate = prompt.userPromptTemplate;
+    if (customPrompt && customPrompt.userPromptTemplate) {
+      userPromptTemplate = customPrompt.userPromptTemplate;
     }
 
-    // Replace template variables in user prompt
+    // Replace template variables in user prompt with safety checks
     const finalUserPrompt = userPromptTemplate
-      .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences.park || 'Any park')
-      .replace(/\{\{preferences\.mealType\}\}/g, preferences.mealType)
-      .replace(/\{\{preferences\.budget\}\}/g, preferences.budget)
-      .replace(/\{\{preferences\.dietaryRestrictions\?\.join\(', '\) \|\| 'None'\}\}/g, preferences.dietaryRestrictions?.join(', ') || 'None')
-      .replace(/\{\{preferences\.groupSize\}\}/g, preferences.groupSize)
-      .replace(/\{\{preferences\.specialOccasion \|\| 'None'\}\}/g, preferences.specialOccasion || 'None');
+      .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences?.park || 'Any park')
+      .replace(/\{\{preferences\.mealType\}\}/g, preferences?.mealType || 'lunch')
+      .replace(/\{\{preferences\.budget\}\}/g, preferences?.budget || 'medium')
+      .replace(/\{\{preferences\.dietaryRestrictions\?\.join\(', '\) \|\| 'None'\}\}/g, preferences?.dietaryRestrictions?.join(', ') || 'None')
+      .replace(/\{\{preferences\.groupSize\}\}/g, preferences?.groupSize || '2')
+      .replace(/\{\{preferences\.specialOccasion \|\| 'None'\}\}/g, preferences?.specialOccasion || 'None');
 
-    const maxTokens = prompt?.maxTokens || 600;
+    const maxTokens = customPrompt?.maxTokens || 600;
 
     const response = await openai.chat.completions.create({
       model: 'o3-mini',
