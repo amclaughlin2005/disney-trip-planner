@@ -41,11 +41,10 @@ module.exports = async function handler(req, res) {
     switch (method) {
       case 'GET':
         if (action === 'list') {
-          // Check if we have either blob token
-          const token = process.env.BLOB_READ_WRITE_TOKEN || process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
-          if (!token) {
-            console.error('No blob token found');
-            return res.status(500).json({ error: 'Blob storage not configured - no token found' });
+          // Check if we have the blob token (server-side version)
+          if (!process.env.BLOB_READ_WRITE_TOKEN) {
+            console.error('BLOB_READ_WRITE_TOKEN not found in serverless function');
+            return res.status(500).json({ error: 'Blob storage not configured - BLOB_READ_WRITE_TOKEN missing' });
           }
 
           const prefix = deviceId ? `trips/${deviceId}/` : 'trips/';
