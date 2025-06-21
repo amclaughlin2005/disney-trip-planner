@@ -69,6 +69,16 @@ export const vercelBlobStorage: CloudStorageService = {
     try {
       const deviceId = getDeviceId();
       
+      // Debug logging
+      console.log('Attempting to save trip:', {
+        id: trip.id,
+        name: trip.name,
+        daysCount: trip.days?.length || 0,
+        hasValidId: !!trip.id,
+        hasValidName: !!trip.name,
+        tripKeys: Object.keys(trip)
+      });
+      
       const response = await withTimeout(
         fetch(`/api/blob?action=save&deviceId=${deviceId}`, {
           method: 'POST',
@@ -81,7 +91,16 @@ export const vercelBlobStorage: CloudStorageService = {
       );
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Try to get error details from response
+        let errorDetails = response.statusText;
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.error || errorData.details || response.statusText;
+          console.error('Server error response:', errorData);
+        } catch (e) {
+          console.error('Could not parse error response as JSON');
+        }
+        throw new Error(`HTTP ${response.status}: ${errorDetails}`);
       }
       
       const result = await response.json();
