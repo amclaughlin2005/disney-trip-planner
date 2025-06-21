@@ -1,0 +1,180 @@
+export interface TripDay {
+  id: string;
+  date: string;
+  park: Park | null;
+  transportation: Transportation[];
+  rides: Ride[];
+  reservations: Reservation[];
+  food: Food[];
+}
+
+export interface Park {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+}
+
+export interface Transportation {
+  id: string;
+  type: 'bus' | 'monorail' | 'boat' | 'walking' | 'uber' | 'lyft' | 'rental' | 'other';
+  from: string;
+  to: string;
+  departureTime: string;
+  arrivalTime: string;
+  notes?: string;
+  color: string;
+}
+
+export interface Ride {
+  id: string;
+  name: string;
+  park: string;
+  type: 'attraction' | 'show' | 'character-meet' | 'parade' | 'fireworks';
+  priority: 'must-do' | 'want-to-do' | 'if-time' | 'skip';
+  timeSlot?: string;
+  duration: number; // in minutes
+  fastPass?: boolean;
+  geniePlus?: boolean;
+  notes?: string;
+  color: string;
+}
+
+export interface Reservation {
+  id: string;
+  name: string;
+  type: 'dining' | 'hotel' | 'spa' | 'tour' | 'other';
+  location: string;
+  date: string;
+  time: string;
+  partySize: number;
+  confirmationNumber?: string;
+  notes?: string;
+  color: string;
+}
+
+export interface Food {
+  id: string;
+  name: string;
+  type: 'quick-service' | 'table-service' | 'character-dining' | 'snack' | 'drink' | 'dessert';
+  location: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  timeSlot?: string;
+  partySize: number;
+  budget: number;
+  reservationNumber?: string;
+  notes?: string;
+  color: string;
+}
+
+export interface CategoryColors {
+  rides: string;
+  reservations: string;
+  transportation: string;
+  food: string;
+}
+
+export interface Trip {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  resort: Resort | null;
+  days: TripDay[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Resort {
+  id: string;
+  name: string;
+  category: 'value' | 'moderate' | 'deluxe' | 'deluxe-villa' | 'other';
+  location: string;
+  transportation: string[];
+}
+
+export const PARKS: Park[] = [
+  { id: 'mk', name: 'Magic Kingdom', color: 'disney-blue', icon: '🏰' },
+  { id: 'epcot', name: 'Epcot', color: 'disney-purple', icon: '🌍' },
+  { id: 'hs', name: 'Hollywood Studios', color: 'disney-pink', icon: '🎬' },
+  { id: 'ak', name: 'Animal Kingdom', color: 'disney-green', icon: '🌿' },
+  { id: 'ds', name: 'Disney Springs', color: 'disney-orange', icon: '🛍️' },
+  { id: 'blt', name: 'Blizzard Beach', color: 'disney-lightblue', icon: '🏖️' },
+  { id: 'tl', name: 'Typhoon Lagoon', color: 'disney-darkblue', icon: '🌊' },
+];
+
+export const TRANSPORTATION_TYPES = [
+  { value: 'bus', label: 'Disney Bus', color: 'disney-blue' },
+  { value: 'monorail', label: 'Monorail', color: 'disney-purple' },
+  { value: 'boat', label: 'Boat/Ferry', color: 'disney-green' },
+  { value: 'walking', label: 'Walking', color: 'disney-gray' },
+  { value: 'uber', label: 'Uber', color: 'disney-orange' },
+  { value: 'lyft', label: 'Lyft', color: 'disney-pink' },
+  { value: 'rental', label: 'Rental Car', color: 'disney-yellow' },
+  { value: 'other', label: 'Other', color: 'disney-gray' },
+];
+
+export const RIDE_TYPES = [
+  { value: 'attraction', label: 'Attraction', color: 'disney-blue' },
+  { value: 'show', label: 'Show', color: 'disney-purple' },
+  { value: 'character-meet', label: 'Character Meet', color: 'disney-pink' },
+  { value: 'parade', label: 'Parade', color: 'disney-yellow' },
+  { value: 'fireworks', label: 'Fireworks', color: 'disney-orange' },
+];
+
+export const RESERVATION_TYPES = [
+  { value: 'dining', label: 'Dining', color: 'disney-green' },
+  { value: 'hotel', label: 'Hotel', color: 'disney-blue' },
+  { value: 'spa', label: 'Spa', color: 'disney-pink' },
+  { value: 'tour', label: 'Tour', color: 'disney-purple' },
+  { value: 'other', label: 'Other', color: 'disney-gray' },
+];
+
+export const FOOD_TYPES = [
+  { value: 'quick-service', label: 'Quick Service', color: 'disney-yellow' },
+  { value: 'table-service', label: 'Table Service', color: 'disney-green' },
+  { value: 'character-dining', label: 'Character Dining', color: 'disney-purple' },
+  { value: 'snack', label: 'Snack', color: 'disney-orange' },
+  { value: 'drink', label: 'Drink', color: 'disney-blue' },
+  { value: 'dessert', label: 'Dessert', color: 'disney-pink' },
+];
+
+export const RESORTS: Resort[] = [
+  // Value Resorts
+  { id: 'all-star-movies', name: "Disney's All-Star Movies Resort", category: 'value', location: 'Animal Kingdom Area', transportation: ['bus'] },
+  { id: 'all-star-music', name: "Disney's All-Star Music Resort", category: 'value', location: 'Animal Kingdom Area', transportation: ['bus'] },
+  { id: 'all-star-sports', name: "Disney's All-Star Sports Resort", category: 'value', location: 'Animal Kingdom Area', transportation: ['bus'] },
+  { id: 'art-of-animation', name: "Disney's Art of Animation Resort", category: 'value', location: 'EPCOT Area', transportation: ['bus', 'skyliner'] },
+  { id: 'pop-century', name: "Disney's Pop Century Resort", category: 'value', location: 'EPCOT Area', transportation: ['bus', 'skyliner'] },
+
+  // Moderate Resorts
+  { id: 'caribbean-beach', name: "Disney's Caribbean Beach Resort", category: 'moderate', location: 'EPCOT Area', transportation: ['bus', 'skyliner'] },
+  { id: 'coronado-springs', name: "Disney's Coronado Springs Resort", category: 'moderate', location: 'Animal Kingdom Area', transportation: ['bus'] },
+  { id: 'fort-wilderness', name: "Disney's Fort Wilderness Resort", category: 'moderate', location: 'Magic Kingdom Area', transportation: ['bus', 'boat'] },
+  { id: 'port-orleans-french', name: "Disney's Port Orleans Resort - French Quarter", category: 'moderate', location: 'Disney Springs Area', transportation: ['bus', 'boat'] },
+  { id: 'port-orleans-riverside', name: "Disney's Port Orleans Resort - Riverside", category: 'moderate', location: 'Disney Springs Area', transportation: ['bus', 'boat'] },
+
+  // Deluxe Resorts
+  { id: 'animal-kingdom-lodge', name: "Disney's Animal Kingdom Lodge", category: 'deluxe', location: 'Animal Kingdom Area', transportation: ['bus'] },
+  { id: 'beach-club', name: "Disney's Beach Club Resort", category: 'deluxe', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
+  { id: 'boardwalk', name: "Disney's BoardWalk Inn", category: 'deluxe', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
+  { id: 'contemporary', name: "Disney's Contemporary Resort", category: 'deluxe', location: 'Magic Kingdom Area', transportation: ['monorail', 'walking'] },
+  { id: 'grand-floridian', name: "Disney's Grand Floridian Resort & Spa", category: 'deluxe', location: 'Magic Kingdom Area', transportation: ['monorail', 'boat'] },
+  { id: 'polynesian', name: "Disney's Polynesian Village Resort", category: 'deluxe', location: 'Magic Kingdom Area', transportation: ['monorail', 'boat'] },
+  { id: 'wilderness-lodge', name: "Disney's Wilderness Lodge", category: 'deluxe', location: 'Magic Kingdom Area', transportation: ['bus', 'boat'] },
+  { id: 'yacht-club', name: "Disney's Yacht Club Resort", category: 'deluxe', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
+
+  // DVC/Deluxe Villa Resorts
+  { id: 'bay-lake-tower', name: "Bay Lake Tower at Disney's Contemporary Resort", category: 'deluxe-villa', location: 'Magic Kingdom Area', transportation: ['monorail', 'walking'] },
+  { id: 'boardwalk-villas', name: "Disney's BoardWalk Villas", category: 'deluxe-villa', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
+  { id: 'old-key-west', name: "Disney's Old Key West Resort", category: 'deluxe-villa', location: 'Disney Springs Area', transportation: ['bus', 'boat'] },
+  { id: 'riviera', name: "Disney's Riviera Resort", category: 'deluxe-villa', location: 'EPCOT Area', transportation: ['bus', 'skyliner'] },
+  { id: 'saratoga-springs', name: "Disney's Saratoga Springs Resort & Spa", category: 'deluxe-villa', location: 'Disney Springs Area', transportation: ['bus', 'boat'] },
+
+  // Other Hotels
+  { id: 'swan', name: 'Walt Disney World Swan', category: 'other', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
+  { id: 'dolphin', name: 'Walt Disney World Dolphin', category: 'other', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
+  { id: 'swan-reserve', name: 'Walt Disney World Swan Reserve', category: 'other', location: 'EPCOT Area', transportation: ['bus', 'boat', 'walking'] },
+  { id: 'shades-of-green', name: 'Shades of Green', category: 'other', location: 'Magic Kingdom Area', transportation: ['bus'] },
+  { id: 'off-property', name: 'Off-Property Hotel', category: 'other', location: 'Various', transportation: ['rental', 'uber', 'lyft'] },
+]; 
