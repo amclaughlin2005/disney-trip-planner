@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut, ArrowLeft } from 'lucide-react';
@@ -30,8 +30,6 @@ export const AdminPanel: React.FC = () => {
     assignUserToAccount,
     removeUserFromAccount,
     deleteAccount,
-    updateUserAccount,
-    isSuperAdmin,
     isImpersonating,
     impersonatedUser,
     impersonatedAccount,
@@ -65,13 +63,7 @@ export const AdminPanel: React.FC = () => {
   // Check if current user is super admin
   const isCurrentUserSuperAdmin = user?.primaryEmailAddress?.emailAddress === SUPER_ADMIN_EMAIL;
 
-  useEffect(() => {
-    if (isCurrentUserSuperAdmin) {
-      loadAdminData();
-    }
-  }, [isCurrentUserSuperAdmin]);
-
-  const loadAdminData = async () => {
+  const loadAdminData = useCallback(async () => {
     setLoading(true);
     try {
       const [usersData, accountsData] = await Promise.all([
@@ -86,7 +78,13 @@ export const AdminPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllUsers, getAllAccounts]);
+
+  useEffect(() => {
+    if (isCurrentUserSuperAdmin) {
+      loadAdminData();
+    }
+  }, [isCurrentUserSuperAdmin]); // Remove loadAdminData from dependencies to prevent infinite loops
 
   const createAccount = async () => {
     const accountName = prompt('Enter account name:');

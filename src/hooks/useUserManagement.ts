@@ -1,6 +1,6 @@
 import { useUser } from '@clerk/clerk-react';
 import { useState, useEffect } from 'react';
-import { AppUser, UserAccount, USER_ROLES } from '../types';
+import { AppUser, UserAccount } from '../types';
 
 // Replace with your actual super admin email
 const SUPER_ADMIN_EMAIL = 'amclaughlin2005@gmail.com';
@@ -24,7 +24,7 @@ export const useUserManagement = () => {
     } else if (isLoaded && !user) {
       setLoading(false);
     }
-  }, [isLoaded, user]);
+  }, [isLoaded, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initializeUser = async () => {
     if (!user) return;
@@ -201,17 +201,21 @@ export const useUserManagement = () => {
       users[userIndex] = userData;
       localStorage.setItem('admin-users', JSON.stringify(users));
       
-      // Update local state if this is the current user (not impersonated)
+      // Only update local state if this is the current user and not impersonating
+      // Avoid triggering infinite loops by checking if state actually changed
       if (!isImpersonating && userData.clerkId === appUser?.clerkId) {
-        setAppUser(userData);
-        
-        // Update account if account changed
-        if (userData.accountId !== appUser.accountId) {
-          if (userData.accountId) {
-            const account = await getUserAccount(userData.accountId);
-            setUserAccount(account);
-          } else {
-            setUserAccount(null);
+        const hasUserChanged = JSON.stringify(appUser) !== JSON.stringify(userData);
+        if (hasUserChanged) {
+          setAppUser(userData);
+          
+          // Update account if account changed
+          if (userData.accountId !== appUser.accountId) {
+            if (userData.accountId) {
+              const account = await getUserAccount(userData.accountId);
+              setUserAccount(account);
+            } else {
+              setUserAccount(null);
+            }
           }
         }
       }

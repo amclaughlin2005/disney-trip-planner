@@ -37,7 +37,7 @@ const TripManager: React.FC<TripManagerProps> = ({
     if (appUser) {
       loadTrips();
     }
-  }, [appUser, userAccount]);
+  }, [appUser?.clerkId, userAccount?.id]); // Only depend on stable IDs to prevent infinite loops
 
   const loadTrips = async () => {
     if (!appUser) return;
