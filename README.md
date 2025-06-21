@@ -47,7 +47,7 @@ A comprehensive web application for planning your magical Disney vacation! This 
 - **Dining Recommendations**: Restaurant suggestions based on cuisine, budget, and dietary needs
 - **Ride Suggestions**: Attraction recommendations tailored to your thrill level and interests
 - **Trip Summary**: Encouraging overviews with tips for a successful vacation
-- **Powered by OpenAI**: Uses GPT-3.5-turbo for intelligent suggestions (see `openai-setup.md`)
+- **Powered by OpenAI**: Uses o3-mini for intelligent suggestions (see `openai-setup.md`)
 
 ### 💾 Data Management
 - **Local Storage**: Automatic saving to your device
@@ -222,7 +222,7 @@ git remote -v
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Date Handling**: date-fns
-- **AI Integration**: OpenAI GPT-3.5-turbo API
+- **AI Integration**: OpenAI o3-mini API
 - **Storage**: Local Storage + Optional Vercel Blob
 - **Deployment**: GitHub + Vercel (automatic CI/CD)
 - **Build Tool**: Create React App

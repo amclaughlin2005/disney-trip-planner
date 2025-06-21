@@ -51,7 +51,7 @@ OPENAI_API_KEY=your_actual_openai_api_key_here
 ## 💰 **Pricing Information**
 
 ### **OpenAI Costs**
-- **GPT-3.5-turbo**: $0.001/1K tokens (~$0.01-0.05 per suggestion)
+- **o3-mini**: Pricing varies (check OpenAI pricing page for current rates) (~$0.01-0.05 per suggestion)
 - **Typical Usage**: $2-5/month for personal trip planning
 - **Free Tier**: $5 credit for new accounts
 

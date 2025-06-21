@@ -75,7 +75,7 @@ Please provide:
 Keep it practical and actionable, focusing on real Disney World experiences.`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'o3-mini',
       messages: [
         {
           role: 'system',
@@ -130,7 +130,7 @@ Please provide:
 Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'o3-mini',
       messages: [
         {
           role: 'system',
@@ -186,7 +186,7 @@ Preferences:
 Provide 3-5 specific restaurant recommendations with reasons why they fit the criteria.`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'o3-mini',
       messages: [
         {
           role: 'system',
@@ -238,7 +238,7 @@ Preferences:
 Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'o3-mini',
       messages: [
         {
           role: 'system',
@@ -292,7 +292,7 @@ Total planned activities: ${totalActivities}
 Create an encouraging summary highlighting what makes this trip special and any tips for success.`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'o3-mini',
       messages: [
         {
           role: 'system',

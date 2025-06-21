@@ -275,7 +275,7 @@ const AdminRoute = ({ children }) => {
   - Mobility requirements and accessibility needs
   - Thrill level preferences (mild to extreme)
   - Dietary restrictions and allergies
-- **Integration**: Secure API calls to OpenAI via server-side proxy
+- **Integration**: Secure API calls to OpenAI via server-side proxy using o3-mini model
 - **Security**: API key protection, rate limiting, content filtering
 
 ### **Hooks (`src/hooks/`)**
@@ -436,6 +436,7 @@ const AdminRoute = ({ children }) => {
 4. **Infinite Loop**: Eliminated circular dependencies in trip saving
 5. **Performance Issues**: Optimized state management and re-rendering
 6. **OpenAI API Integration**: Fixed 404 errors in local development by creating separate development server
+7. **OpenAI Model Update**: Upgraded from GPT-3.5-turbo to o3-mini for improved AI assistance
 
 ### **UX Improvements**
 - **Visual Indicators**: Clear impersonation status with orange banners

@@ -46,7 +46,7 @@
 ## 💰 Pricing Information
 
 ### OpenAI Pricing (as of 2024)
-- **GPT-3.5-turbo**: ~$0.002 per 1K tokens
+- **o3-mini**: Pricing varies (check OpenAI pricing page for current rates)
 - **Typical usage**: Each AI suggestion costs approximately $0.01-0.05
 - **Monthly estimate**: Light usage (~50 requests) = $2-5/month
 
