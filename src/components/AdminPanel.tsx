@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck } from 'lucide-react';
+import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut } from 'lucide-react';
 import { AppUser, UserAccount } from '../types';
 import { useUserManagement } from '../hooks/useUserManagement';
 
@@ -30,10 +30,17 @@ const AdminPanel: React.FC = () => {
     removeUserFromAccount,
     deleteAccount,
     updateUserAccount,
-    isSuperAdmin
+    isSuperAdmin,
+    isImpersonating,
+    impersonatedUser,
+    impersonatedAccount,
+    originalUser,
+    startImpersonation,
+    stopImpersonation,
+    switchToAccount
   } = useUserManagement();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'settings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'impersonation' | 'settings'>('users');
   const [users, setUsers] = useState<AppUser[]>([]);
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,6 +286,29 @@ const AdminPanel: React.FC = () => {
     return users.filter(u => !u.accountId && !u.isSuperAdmin);
   };
 
+  const handleImpersonateUser = async (userId: string) => {
+    const success = await startImpersonation(userId);
+    if (success) {
+      alert('Successfully switched to user context. You can now view and edit as this user.');
+    } else {
+      alert('Failed to impersonate user. Please try again.');
+    }
+  };
+
+  const handleSwitchToAccount = async (accountId: string) => {
+    const success = await switchToAccount(accountId);
+    if (success) {
+      alert('Successfully switched to account context. You can now view and edit account data.');
+    } else {
+      alert('Failed to switch to account. Please try again.');
+    }
+  };
+
+  const handleStopImpersonation = () => {
+    stopImpersonation();
+    alert('Returned to your super admin context.');
+  };
+
   if (!user) {
     return <div>Loading...</div>;
   }
@@ -296,11 +326,40 @@ const AdminPanel: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
-        <div className="flex items-center space-x-2 mb-4">
-          <Crown className="h-8 w-8 text-yellow-500" />
-          <h1 className="text-3xl font-bold text-gray-900">Super Admin Panel</h1>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Crown className="h-8 w-8 text-yellow-500" />
+            <h1 className="text-3xl font-bold text-gray-900">Super Admin Panel</h1>
+          </div>
+          {isImpersonating && (
+            <div className="flex items-center space-x-2">
+              <div className="bg-orange-100 border border-orange-300 rounded-lg px-4 py-2">
+                <div className="flex items-center space-x-2">
+                  <Eye className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-800">
+                    Impersonating: {impersonatedUser?.name || 'Unknown User'}
+                    {impersonatedAccount && ` (${impersonatedAccount.name})`}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleStopImpersonation}
+                className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Stop Impersonating</span>
+              </button>
+            </div>
+          )}
         </div>
-        <p className="text-gray-600">Manage users, accounts, and system settings</p>
+        <p className="text-gray-600">
+          Manage users, accounts, and system settings
+          {isImpersonating && (
+            <span className="text-orange-600 ml-2">
+              • Currently viewing as {impersonatedUser?.name}
+            </span>
+          )}
+        </p>
       </div>
 
       {/* Tab Navigation */}
@@ -309,6 +368,7 @@ const AdminPanel: React.FC = () => {
           {[
             { id: 'users', label: 'Users', icon: Users },
             { id: 'accounts', label: 'Accounts', icon: Shield },
+            { id: 'impersonation', label: 'Impersonation', icon: Eye },
             { id: 'settings', label: 'Settings', icon: Settings }
           ].map(({ id, label, icon: Icon }) => (
             <button
@@ -452,6 +512,14 @@ const AdminPanel: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
                               <button
+                                onClick={() => handleImpersonateUser(user.clerkId)}
+                                className="text-purple-600 hover:text-purple-800"
+                                title="Impersonate user"
+                                disabled={user.isSuperAdmin}
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button
                                 onClick={() => toggleUserSuperAdmin(user.clerkId)}
                                 className="text-disney-blue hover:text-blue-600"
                                 title={user.isSuperAdmin ? 'Remove super admin' : 'Make super admin'}
@@ -520,6 +588,13 @@ const AdminPanel: React.FC = () => {
                           </span>
                         </div>
                         <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleSwitchToAccount(account.id)}
+                            className="text-purple-600 hover:text-purple-800"
+                            title="Switch to account context"
+                          >
+                            <Eye size={16} />
+                          </button>
                           <button className="text-disney-blue hover:text-blue-600">
                             <Edit size={16} />
                           </button>
@@ -537,6 +612,118 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           )}
+
+                     {/* Impersonation Tab */}
+           {activeTab === 'impersonation' && (
+             <div>
+               <h2 className="text-xl font-semibold text-gray-900 mb-6">User & Account Impersonation</h2>
+               
+               {/* Current Impersonation Status */}
+               <div className="bg-white shadow rounded-lg p-6 mb-6">
+                 <h3 className="text-lg font-medium text-gray-900 mb-4">Current Status</h3>
+                 {isImpersonating ? (
+                   <div className="space-y-4">
+                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                       <div className="flex items-center justify-between">
+                         <div>
+                           <div className="flex items-center space-x-2 mb-2">
+                             <Eye className="h-5 w-5 text-orange-600" />
+                             <span className="font-medium text-orange-800">Currently Impersonating</span>
+                           </div>
+                           <div className="text-sm text-gray-700">
+                             <p><strong>User:</strong> {impersonatedUser?.name} ({impersonatedUser?.email})</p>
+                             <p><strong>Account:</strong> {impersonatedAccount?.name || 'No Account'}</p>
+                             <p><strong>Role:</strong> {impersonatedUser?.role || 'No Role'}</p>
+                           </div>
+                         </div>
+                         <button
+                           onClick={handleStopImpersonation}
+                           className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                         >
+                           <LogOut size={16} />
+                           <span>Stop Impersonating</span>
+                         </button>
+                       </div>
+                     </div>
+                     <div className="text-sm text-gray-600">
+                       <p><strong>Original User:</strong> {originalUser?.name} ({originalUser?.email})</p>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="text-center py-8 text-gray-500">
+                     <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                     <p>No active impersonation</p>
+                     <p className="text-sm mt-1">Use the eye icons in the Users or Accounts tabs to start impersonating</p>
+                   </div>
+                 )}
+               </div>
+
+               {/* Quick Access */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {/* Quick User Impersonation */}
+                 <div className="bg-white shadow rounded-lg p-6">
+                   <h3 className="text-lg font-medium text-gray-900 mb-4">Quick User Impersonation</h3>
+                   <div className="space-y-3">
+                     {users.filter(u => !u.isSuperAdmin).slice(0, 5).map(user => (
+                       <div key={user.clerkId} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                         <div>
+                           <p className="font-medium text-gray-900">{user.name}</p>
+                           <p className="text-sm text-gray-500">{getAccountName(user.accountId)}</p>
+                         </div>
+                         <button
+                           onClick={() => handleImpersonateUser(user.clerkId)}
+                           className="flex items-center space-x-1 px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors text-sm"
+                         >
+                           <Eye size={14} />
+                           <span>Impersonate</span>
+                         </button>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+
+                 {/* Quick Account Switching */}
+                 <div className="bg-white shadow rounded-lg p-6">
+                   <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Account Switching</h3>
+                   <div className="space-y-3">
+                     {accounts.slice(0, 5).map(account => (
+                       <div key={account.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                         <div>
+                           <p className="font-medium text-gray-900">{account.name}</p>
+                           <p className="text-sm text-gray-500">{account.subscriptionStatus}</p>
+                         </div>
+                         <button
+                           onClick={() => handleSwitchToAccount(account.id)}
+                           className="flex items-center space-x-1 px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors text-sm"
+                         >
+                           <Eye size={14} />
+                           <span>Switch</span>
+                         </button>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+               </div>
+
+               {/* Warning */}
+               <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                 <div className="flex items-start">
+                   <Shield className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                   <div>
+                     <h4 className="text-sm font-medium text-yellow-800">Impersonation Guidelines</h4>
+                     <div className="text-sm text-yellow-700 mt-1">
+                       <ul className="list-disc list-inside space-y-1">
+                         <li>Use impersonation only for support and troubleshooting purposes</li>
+                         <li>Always inform users when accessing their account for support</li>
+                         <li>Log all impersonation activities for audit purposes</li>
+                         <li>Return to your admin context when finished</li>
+                       </ul>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           )}
 
           {/* Settings Tab */}
           {activeTab === 'settings' && (

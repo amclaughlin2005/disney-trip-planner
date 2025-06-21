@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Plus, List, Grid, Bot, Crown } from 'lucide-react';
+import { Calendar, Plus, List, Grid, Bot, Crown, Eye, LogOut } from 'lucide-react';
 import { Trip, TripDay, Park } from './types';
 import { storageService } from './utils/cloudStorage';
 import TripDayCard from './components/TripDayCard';
@@ -21,7 +21,11 @@ function AppContent() {
     loading: userLoading,
     canAccessAdmin,
     needsAccount,
-    hasPermission
+    hasPermission,
+    isImpersonating,
+    impersonatedUser,
+    impersonatedAccount,
+    stopImpersonation
   } = useUserManagement();
 
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
@@ -143,15 +147,49 @@ function AppContent() {
 
   return (
     <div className="space-y-6">
+      {/* Impersonation Banner */}
+      {isImpersonating && (
+        <div className="bg-orange-100 border-l-4 border-orange-500 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Eye className="h-5 w-5 text-orange-600" />
+              <div>
+                <p className="text-sm font-medium text-orange-800">
+                  Super Admin Impersonation Active
+                </p>
+                <p className="text-sm text-orange-700">
+                  Viewing as: <strong>{impersonatedUser?.name}</strong>
+                  {impersonatedAccount && (
+                    <span> in account <strong>{impersonatedAccount.name}</strong></span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={stopImpersonation}
+              className="flex items-center space-x-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
+            >
+              <LogOut size={16} />
+              <span>Exit Impersonation</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header with navigation */}
       <div className="flex justify-between items-center">
         <div>
-                       <h1 className="text-2xl font-bold text-gray-900">
-               Disney Trip Planner
-             </h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Disney Trip Planner
+          </h1>
           {userAccount && (
             <p className="text-gray-600">
               {userAccount.name} • {appUser?.role || 'Member'}
+              {isImpersonating && (
+                <span className="text-orange-600 ml-2">
+                  (Impersonated View)
+                </span>
+              )}
             </p>
           )}
         </div>

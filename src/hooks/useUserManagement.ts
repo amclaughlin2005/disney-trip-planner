@@ -10,6 +10,13 @@ export const useUserManagement = () => {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Impersonation state
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [impersonatedUser, setImpersonatedUser] = useState<AppUser | null>(null);
+  const [impersonatedAccount, setImpersonatedAccount] = useState<UserAccount | null>(null);
+  const [originalUser, setOriginalUser] = useState<AppUser | null>(null);
+  const [originalAccount, setOriginalAccount] = useState<UserAccount | null>(null);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -59,6 +66,104 @@ export const useUserManagement = () => {
     }
   };
 
+  // Impersonation functions
+  const startImpersonation = async (targetUserId: string): Promise<boolean> => {
+    if (!isSuperAdmin()) {
+      console.error('Only super admins can impersonate users');
+      return false;
+    }
+
+    try {
+      const targetUser = await getAppUser(targetUserId);
+      if (!targetUser) {
+        console.error('Target user not found');
+        return false;
+      }
+
+      // Store original state
+      setOriginalUser(appUser);
+      setOriginalAccount(userAccount);
+
+      // Load target user's account
+      let targetAccount = null;
+      if (targetUser.accountId) {
+        targetAccount = await getUserAccount(targetUser.accountId);
+      }
+
+      // Switch to target user context
+      setImpersonatedUser(targetUser);
+      setImpersonatedAccount(targetAccount);
+      setIsImpersonating(true);
+
+      console.log(`Super admin impersonating user: ${targetUser.name}`);
+      return true;
+    } catch (error) {
+      console.error('Error starting impersonation:', error);
+      return false;
+    }
+  };
+
+  const stopImpersonation = () => {
+    if (!isImpersonating) return;
+
+    // Restore original state
+    setImpersonatedUser(null);
+    setImpersonatedAccount(null);
+    setIsImpersonating(false);
+    setOriginalUser(null);
+    setOriginalAccount(null);
+
+    console.log('Stopped impersonation, returned to super admin context');
+  };
+
+  const switchToAccount = async (accountId: string): Promise<boolean> => {
+    if (!isSuperAdmin()) {
+      console.error('Only super admins can switch accounts');
+      return false;
+    }
+
+    try {
+      const targetAccount = await getUserAccount(accountId);
+      if (!targetAccount) {
+        console.error('Target account not found');
+        return false;
+      }
+
+      // Store original state if not already impersonating
+      if (!isImpersonating) {
+        setOriginalUser(appUser);
+        setOriginalAccount(userAccount);
+      }
+
+      // Create a temporary user context for the account
+      const accountOwner = await getAccountOwner(accountId);
+      
+      setImpersonatedUser(accountOwner);
+      setImpersonatedAccount(targetAccount);
+      setIsImpersonating(true);
+
+      console.log(`Super admin switched to account: ${targetAccount.name}`);
+      return true;
+    } catch (error) {
+      console.error('Error switching to account:', error);
+      return false;
+    }
+  };
+
+  const getAccountOwner = async (accountId: string): Promise<AppUser | null> => {
+    const users = await getAllUsers();
+    return users.find(u => u.accountId === accountId && u.role === 'owner') || null;
+  };
+
+  // Get effective user and account (considering impersonation)
+  const getEffectiveUser = (): AppUser | null => {
+    return isImpersonating ? impersonatedUser : appUser;
+  };
+
+  const getEffectiveAccount = (): UserAccount | null => {
+    return isImpersonating ? impersonatedAccount : userAccount;
+  };
+
   // Simulated API functions - replace with actual API calls
   const getAppUser = async (clerkId: string): Promise<AppUser | null> => {
     const users = JSON.parse(localStorage.getItem('admin-users') || '[]');
@@ -96,8 +201,8 @@ export const useUserManagement = () => {
       users[userIndex] = userData;
       localStorage.setItem('admin-users', JSON.stringify(users));
       
-      // Update local state if this is the current user
-      if (userData.clerkId === appUser?.clerkId) {
+      // Update local state if this is the current user (not impersonated)
+      if (!isImpersonating && userData.clerkId === appUser?.clerkId) {
         setAppUser(userData);
         
         // Update account if account changed
@@ -257,17 +362,18 @@ export const useUserManagement = () => {
     }
   };
 
-  // Permission checking functions
+  // Permission checking functions (considering impersonation)
   const isSuperAdmin = (): boolean => {
-    return appUser?.isSuperAdmin || false;
+    return appUser?.isSuperAdmin || false; // Always check original user's super admin status
   };
 
   const isAccountOwner = (): boolean => {
-    return appUser?.role === 'owner';
+    const effectiveUser = getEffectiveUser();
+    return effectiveUser?.role === 'owner';
   };
 
   const hasPermission = (permission: string): boolean => {
-    if (isSuperAdmin()) return true;
+    if (isSuperAdmin()) return true; // Super admin always has permission
     
     // Define role-based permissions
     const rolePermissions: Record<string, string[]> = {
@@ -277,7 +383,8 @@ export const useUserManagement = () => {
       viewer: ['trips:read']
     };
 
-    const userRole = appUser?.role;
+    const effectiveUser = getEffectiveUser();
+    const userRole = effectiveUser?.role;
     if (!userRole) return false;
 
     return rolePermissions[userRole]?.includes(permission) || false;
@@ -292,19 +399,29 @@ export const useUserManagement = () => {
   };
 
   const canManageUsers = (): boolean => {
-    return isSuperAdmin() || isAccountOwner() || appUser?.role === 'admin';
+    return isSuperAdmin() || isAccountOwner() || getEffectiveUser()?.role === 'admin';
   };
 
   const needsAccount = (): boolean => {
-    return !isSuperAdmin() && !appUser?.accountId;
+    return !isSuperAdmin() && !getEffectiveUser()?.accountId;
   };
 
   return {
     user,
-    appUser,
-    userAccount,
+    appUser: getEffectiveUser(), // Return effective user (considering impersonation)
+    userAccount: getEffectiveAccount(), // Return effective account (considering impersonation)
     loading,
     isLoaded,
+    
+    // Impersonation functions
+    isImpersonating,
+    impersonatedUser,
+    impersonatedAccount,
+    originalUser,
+    originalAccount,
+    startImpersonation,
+    stopImpersonation,
+    switchToAccount,
     
     // User management functions
     createUserAccount,
