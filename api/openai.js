@@ -314,10 +314,6 @@ Why it fits: [Explanation of why this matches their preferences]
         }
       }
       
-      if (currentRec) {
-        recommendations.push(currentRec);
-      }
-      
       // If we couldn't parse individual recommendations, return the full content as one
       if (recommendations.length === 0) {
         recommendations.push({
