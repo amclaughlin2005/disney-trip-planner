@@ -36,16 +36,25 @@ const TripManager: React.FC<TripManagerProps> = ({
   const loadTrips = async () => {
     setIsLoading(true);
     try {
+      console.log('Loading trips from storage service...');
       const savedTrips = await storageService.getTrips();
       setTrips(savedTrips);
       setIsCloudConnected(isCloudStorageConfigured());
+      console.log(`Loaded ${savedTrips.length} trips successfully`);
     } catch (error) {
-      console.error('Failed to load trips from cloud, falling back to local storage');
+      console.error('Failed to load trips from cloud, falling back to local storage:', error);
       // Fallback to local storage
-      const { getTrips } = await import('../utils/tripStorage');
-      const localTrips = getTrips();
-      setTrips(localTrips);
-      setIsCloudConnected(false);
+      try {
+        const { getTrips } = await import('../utils/tripStorage');
+        const localTrips = getTrips();
+        setTrips(localTrips);
+        setIsCloudConnected(false);
+        console.log(`Loaded ${localTrips.length} trips from local storage`);
+      } catch (localError) {
+        console.error('Failed to load trips from local storage:', localError);
+        setTrips([]);
+        setIsCloudConnected(false);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -146,8 +155,8 @@ const TripManager: React.FC<TripManagerProps> = ({
             </>
           ) : (
             <>
-              <CloudOff size={16} className="text-orange-600" />
-              <span className="text-orange-600">Using local storage</span>
+              <CloudOff size={16} className="text-blue-600" />
+              <span className="text-blue-600">Local storage (Cloud storage available in production)</span>
             </>
           )}
           {isLoading && (

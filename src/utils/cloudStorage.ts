@@ -1,12 +1,24 @@
 import { put, del, list } from '@vercel/blob';
 import { Trip } from '../types';
 
-// Check if Vercel Blob is configured
+// Check if Vercel Blob is configured and we're in production
 const isVercelBlobConfigured = (): boolean => {
-  return !!(process.env.REACT_APP_BLOB_READ_WRITE_TOKEN);
+  // Vercel Blob only works in production due to CORS restrictions
+  const isProduction = process.env.NODE_ENV === 'production';
+  const token = process.env.REACT_APP_BLOB_READ_WRITE_TOKEN;
+  const hasValidToken = !!(token && token.startsWith('vercel_blob_rw_'));
+  const isConfigured = isProduction && hasValidToken;
+  
+  console.log('Vercel Blob configuration check:', {
+    isProduction,
+    hasValidToken: hasValidToken ? `${token!.substring(0, 20)}...` : 'No token',
+    isConfigured
+  });
+  
+  return isConfigured;
 };
 
-console.log(isVercelBlobConfigured() ? 'Vercel Blob configured' : 'Vercel Blob not configured - using local storage only');
+console.log(isVercelBlobConfigured() ? 'Vercel Blob configured for production' : 'Using local storage (Vercel Blob only works in production)');
 
 // User ID - for now we'll use a simple device-based ID
 // Later this can be replaced with actual user authentication
@@ -30,6 +42,16 @@ export interface CloudStorageService {
 // Type for unsubscribe function
 export type Unsubscribe = () => void;
 
+// Helper function to add timeout to promises
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms)
+    )
+  ]);
+};
+
 // Vercel Blob implementation
 export const vercelBlobStorage: CloudStorageService = {
   async saveTrip(trip: Trip): Promise<void> {
@@ -48,15 +70,18 @@ export const vercelBlobStorage: CloudStorageService = {
       
       // Store trip as JSON blob with device-specific path
       const blobName = `trips/${deviceId}/${trip.id}.json`;
-      const blob = await put(blobName, JSON.stringify(tripData), {
-        access: 'public',
-        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
-      });
+      const blob = await withTimeout(
+        put(blobName, JSON.stringify(tripData), {
+          access: 'public',
+          token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+        }),
+        10000 // 10 second timeout
+      );
       
       console.log('Trip saved to Vercel Blob:', trip.id, blob.url);
     } catch (error) {
       console.error('Error saving trip to Vercel Blob:', error);
-      throw new Error('Failed to save trip to cloud storage');
+      throw new Error(`Failed to save trip to cloud storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 
@@ -69,18 +94,25 @@ export const vercelBlobStorage: CloudStorageService = {
       const deviceId = getDeviceId();
       const prefix = `trips/${deviceId}/`;
       
-      // List all trip files for this device
-      const { blobs } = await list({
-        prefix,
-        token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
-      });
+      console.log('Loading trips from Vercel Blob for device:', deviceId);
+      
+      // List all trip files for this device with timeout
+      const { blobs } = await withTimeout(
+        list({
+          prefix,
+          token: process.env.REACT_APP_BLOB_READ_WRITE_TOKEN!
+        }),
+        10000 // 10 second timeout
+      );
+      
+      console.log(`Found ${blobs.length} trip files in Vercel Blob`);
       
       const trips: Trip[] = [];
       
       // Fetch each trip file
       for (const blob of blobs) {
         try {
-          const response = await fetch(blob.url);
+          const response = await withTimeout(fetch(blob.url), 5000); // 5 second timeout per file
           if (response.ok) {
             const tripData = await response.json();
             trips.push(tripData as Trip);
@@ -97,10 +129,11 @@ export const vercelBlobStorage: CloudStorageService = {
         return bTime - aTime;
       });
       
+      console.log(`Successfully loaded ${trips.length} trips from Vercel Blob`);
       return trips;
     } catch (error) {
       console.error('Error loading trips from Vercel Blob:', error);
-      throw new Error('Failed to load trips from cloud storage');
+      throw new Error(`Failed to load trips from cloud storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 

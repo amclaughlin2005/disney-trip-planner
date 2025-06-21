@@ -24,15 +24,19 @@ Vercel Blob provides simple, fast, and secure file storage for your applications
 
 ## Environment Variable Setup
 
+### ⚠️ Important: Local Development Limitation
+**Vercel Blob storage only works in production due to CORS restrictions.** In local development, the app will automatically use local storage instead.
+
 ### For Local Development:
 1. Create/update your `.env` file in the project root:
    ```
    REACT_APP_BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your-token-here
    ```
 2. Restart your development server (`npm start`)
+3. **Note**: The app will use local storage in development and show "Local storage (Cloud storage available in production)"
 
 ### For Production (Vercel):
-The environment variable is automatically configured when you create Blob storage. No additional setup needed!
+The environment variable is automatically configured when you create Blob storage. Vercel Blob will work seamlessly in production!
 
 ## 💰 Pricing
 
@@ -82,10 +86,16 @@ Each device gets its own folder, keeping your trips private and organized.
 
 ### Common Issues:
 
+**CORS errors in local development**
+- This is expected! Vercel Blob only works in production
+- Your app will automatically fall back to local storage in development
+- Deploy to Vercel to test cloud storage functionality
+
 **"Vercel Blob not configured"**
 - Check that your environment variable is set correctly
 - Ensure the token starts with `vercel_blob_rw_`
 - Restart your development server after adding the token
+- Remember: Only works in production, not local development
 
 **"Failed to save trip to cloud storage"**
 - Verify your Vercel project has Blob storage enabled
