@@ -181,13 +181,33 @@ const MainApp: React.FC = () => {
 
 // Admin Route Component
 const AdminRoute: React.FC = () => {
-  const { appUser } = useUserManagement();
+  const { appUser, loading } = useUserManagement();
+  
+  // Debug logging for admin route
+  console.log('AdminRoute - appUser:', appUser);
+  console.log('AdminRoute - appUser?.isSuperAdmin:', appUser?.isSuperAdmin);
+  console.log('AdminRoute - loading:', loading);
+  
+  // Show loading while user data is being fetched
+  if (loading) {
+    console.log('AdminRoute - Still loading user data');
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-disney-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
   
   // Only super admins can access admin panel
   if (!appUser?.isSuperAdmin) {
+    console.log('AdminRoute - Redirecting to home because user is not super admin');
     return <Navigate to="/" replace />;
   }
 
+  console.log('AdminRoute - Rendering AdminPanel');
   return <AdminPanel />;
 };
 
