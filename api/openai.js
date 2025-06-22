@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
 
 async function handleItinerarySuggestions(req, res, data) {
   try {
-    const { trip, preferences, prompt } = data;
+    const { trip, preferences, prompt: customPrompt } = data;
     
     // Use custom prompt if provided, otherwise fall back to default
     let systemMessage = 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.';
@@ -77,11 +77,11 @@ Please provide:
 Keep it practical and actionable, focusing on real Disney World experiences.`;
 
     // Use custom prompt if provided
-    if (prompt && prompt.systemMessage) {
-      systemMessage = prompt.systemMessage;
+    if (customPrompt && customPrompt.systemMessage) {
+      systemMessage = customPrompt.systemMessage;
     }
-    if (prompt && prompt.userPromptTemplate) {
-      userPromptTemplate = prompt.userPromptTemplate;
+    if (customPrompt && customPrompt.userPromptTemplate) {
+      userPromptTemplate = customPrompt.userPromptTemplate;
     }
 
     // Replace template variables in user prompt
@@ -97,7 +97,7 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
       .replace(/\{\{preferences\.mobility\}\}/g, preferences.mobility)
       .replace(/\{\{preferences\.thrillLevel\}\}/g, preferences.thrillLevel);
 
-    const maxTokens = prompt?.maxTokens || 1000;
+    const maxTokens = customPrompt?.maxTokens || 1000;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -129,21 +129,17 @@ async function handleDayOptimization(req, res, data) {
   try {
     const { day, preferences, prompt: customPrompt } = data;
     
-    const activities = [
-      ...day.rides.map(r => `Ride: ${r.name}`),
-      ...day.food.map(f => `Dining: ${f.name} at ${f.timeSlot || 'flexible time'}`),
-      ...day.reservations.map(r => `Reservation: ${r.name} at ${r.time}`)
-    ];
+    // Use custom prompt if provided, otherwise fall back to default
+    let systemMessage = 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.';
+    let userPromptTemplate = `Optimize this Disney park day plan:
 
-    const promptText = `Optimize this Disney park day plan:
-
-Park: ${day.park?.name || 'Not specified'}
-Current Activities: ${activities.join(', ')}
+Park: {{day.park?.name || 'Not specified'}}
+Current Activities: {{activities.join(', ')}}
 
 Optimization Preferences:
-- Priority: ${preferences.priority}
-- Crowd tolerance: ${preferences.crowdTolerance}
-- Walking preference: ${preferences.walkingDistance}
+- Priority: {{preferences.priority}}
+- Crowd tolerance: {{preferences.crowdTolerance}}
+- Walking preference: {{preferences.walkingDistance}}
 
 Please provide:
 1. Suggested order of activities
@@ -153,16 +149,40 @@ Please provide:
 
 Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
 
+    // Use custom prompt if provided
+    if (customPrompt && customPrompt.systemMessage) {
+      systemMessage = customPrompt.systemMessage;
+    }
+    if (customPrompt && customPrompt.userPromptTemplate) {
+      userPromptTemplate = customPrompt.userPromptTemplate;
+    }
+
+    const activities = [
+      ...day.rides.map(r => `Ride: ${r.name}`),
+      ...day.food.map(f => `Dining: ${f.name} at ${f.timeSlot || 'flexible time'}`),
+      ...day.reservations.map(r => `Reservation: ${r.name} at ${r.time}`)
+    ];
+
+    // Replace template variables in user prompt
+    const finalUserPrompt = userPromptTemplate
+      .replace(/\{\{day\.park\?\.name \|\| 'Not specified'\}\}/g, day.park?.name || 'Not specified')
+      .replace(/\{\{activities\.join\(', '\)\}\}/g, activities.join(', '))
+      .replace(/\{\{preferences\.priority\}\}/g, preferences.priority)
+      .replace(/\{\{preferences\.crowdTolerance\}\}/g, preferences.crowdTolerance)
+      .replace(/\{\{preferences\.walkingDistance\}\}/g, preferences.walkingDistance);
+
+         const maxTokens = customPrompt?.maxTokens || 800;
+
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.'
+          content: systemMessage
         },
         {
           role: 'user',
-          content: promptText
+          content: finalUserPrompt
         }
       ],
       max_tokens: 800
@@ -352,29 +372,49 @@ Why it fits: [Explanation of why this matches their preferences]
 
 async function handleRideSuggestions(req, res, data) {
   try {
-    const { preferences } = data;
+    const { preferences, prompt: customPrompt } = data;
     
-    const prompt = `Suggest Disney World attractions for:
+    // Use custom prompt if provided, otherwise fall back to default
+    let systemMessage = 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.';
+    let userPromptTemplate = `Suggest Disney World attractions for:
       
 Preferences:
-- Park: ${preferences.park || 'Any park'}
-- Thrill level: ${preferences.thrillLevel}
-- Ages in group: ${preferences.ages?.join(', ') || 'Not specified'}
-- Interests: ${preferences.interests?.join(', ') || 'General'}
-- Time available: ${preferences.timeAvailable || 'Full day'}
+- Park: {{preferences.park || 'Any park'}}
+- Thrill level: {{preferences.thrillLevel}}
+- Ages in group: {{preferences.ages?.join(', ') || 'Not specified'}}
+- Interests: {{preferences.interests?.join(', ') || 'General'}}
+- Time available: {{preferences.timeAvailable || 'Full day'}}
 
 Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`;
+
+    // Use custom prompt if provided
+    if (customPrompt && customPrompt.systemMessage) {
+      systemMessage = customPrompt.systemMessage;
+    }
+    if (customPrompt && customPrompt.userPromptTemplate) {
+      userPromptTemplate = customPrompt.userPromptTemplate;
+    }
+
+    // Replace template variables in user prompt
+    const finalUserPrompt = userPromptTemplate
+      .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences.park || 'Any park')
+      .replace(/\{\{preferences\.thrillLevel\}\}/g, preferences.thrillLevel)
+      .replace(/\{\{preferences\.ages\?\.join\(', '\) \|\| 'Not specified'\}\}/g, preferences.ages?.join(', ') || 'Not specified')
+      .replace(/\{\{preferences\.interests\?\.join\(', '\) \|\| 'General'\}\}/g, preferences.interests?.join(', ') || 'General')
+      .replace(/\{\{preferences\.timeAvailable \|\| 'Full day'\}\}/g, preferences.timeAvailable || 'Full day');
+
+    const maxTokens = customPrompt?.maxTokens || 600;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.'
+          content: systemMessage
         },
         {
           role: 'user',
-          content: prompt
+          content: finalUserPrompt
         }
       ],
       max_tokens: 600
@@ -403,31 +443,50 @@ Recommend 5-8 attractions with timing strategies and Lightning Lane recommendati
 
 async function handleTripSummary(req, res, data) {
   try {
-    const { trip } = data;
+    const { trip, prompt: customPrompt } = data;
     
+    // Use custom prompt if provided, otherwise fall back to default
+    let systemMessage = 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.';
+    let userPromptTemplate = `Create a friendly trip summary for this Disney vacation:
+
+Trip: {{trip.name}}
+Duration: {{trip.days.length}} days
+Resort: {{trip.resort?.name || 'Not specified'}}
+Total planned activities: {{totalActivities}}
+
+Create an encouraging summary highlighting what makes this trip special and any tips for success.`;
+
+    // Use custom prompt if provided
+    if (customPrompt && customPrompt.systemMessage) {
+      systemMessage = customPrompt.systemMessage;
+    }
+    if (customPrompt && customPrompt.userPromptTemplate) {
+      userPromptTemplate = customPrompt.userPromptTemplate;
+    }
+
     const totalActivities = trip.days.reduce((total, day) => 
       total + day.rides.length + day.food.length + day.reservations.length, 0
     );
 
-    const prompt = `Create a friendly trip summary for this Disney vacation:
+    // Replace template variables in user prompt
+    const finalUserPrompt = userPromptTemplate
+      .replace(/\{\{trip\.name\}\}/g, trip.name)
+      .replace(/\{\{trip\.days\.length\}\}/g, trip.days.length)
+      .replace(/\{\{trip\.resort\?\.name \|\| 'Not specified'\}\}/g, trip.resort?.name || 'Not specified')
+      .replace(/\{\{totalActivities\}\}/g, totalActivities);
 
-Trip: ${trip.name}
-Duration: ${trip.days.length} days
-Resort: ${trip.resort?.name || 'Not specified'}
-Total planned activities: ${totalActivities}
-
-Create an encouraging summary highlighting what makes this trip special and any tips for success.`;
+         const maxTokens = customPrompt?.maxTokens || 300;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.'
+          content: systemMessage
         },
         {
           role: 'user',
-          content: prompt
+          content: finalUserPrompt
         }
       ],
       max_tokens: 300
