@@ -10,6 +10,242 @@ if (!process.env.OPENAI_API_KEY) {
   console.error('OPENAI_API_KEY environment variable is not set');
 }
 
+// JSON Schemas for structured outputs
+const schemas = {
+  itinerarySuggestions: {
+    type: "json_schema",
+    json_schema: {
+      name: "itinerary_suggestions",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          summary: {
+            type: "string",
+            description: "Brief overview of the recommended itinerary"
+          },
+          parkOrder: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                day: { type: "integer" },
+                park: { type: "string" },
+                reasoning: { type: "string" }
+              },
+              required: ["day", "park", "reasoning"],
+              additionalProperties: false
+            }
+          },
+          mustDoAttractions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                park: { type: "string" },
+                priority: { type: "string", enum: ["high", "medium", "low"] },
+                reason: { type: "string" }
+              },
+              required: ["name", "park", "priority", "reason"],
+              additionalProperties: false
+            }
+          },
+          diningRecommendations: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                mealType: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack"] },
+                location: { type: "string" },
+                reason: { type: "string" }
+              },
+              required: ["name", "mealType", "location", "reason"],
+              additionalProperties: false
+            }
+          },
+          tips: {
+            type: "array",
+            items: { type: "string" }
+          },
+          specialConsiderations: {
+            type: "array",
+            items: { type: "string" }
+          }
+        },
+        required: ["summary", "parkOrder", "mustDoAttractions", "diningRecommendations", "tips", "specialConsiderations"],
+        additionalProperties: false
+      }
+    }
+  },
+
+  dayOptimization: {
+    type: "json_schema",
+    json_schema: {
+      name: "day_optimization",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          suggestedOrder: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                activity: { type: "string" },
+                suggestedTime: { type: "string" },
+                estimatedDuration: { type: "string" },
+                priority: { type: "integer", minimum: 1, maximum: 10 }
+              },
+              required: ["activity", "suggestedTime", "estimatedDuration", "priority"],
+              additionalProperties: false
+            }
+          },
+          tips: {
+            type: "array",
+            items: { type: "string" }
+          },
+          warnings: {
+            type: "array",
+            items: { type: "string" }
+          },
+          alternativeOptions: {
+            type: "array",
+            items: { type: "string" }
+          }
+        },
+        required: ["suggestedOrder", "tips", "warnings", "alternativeOptions"],
+        additionalProperties: false
+      }
+    }
+  },
+
+  diningRecommendations: {
+    type: "json_schema",
+    json_schema: {
+      name: "dining_recommendations",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          recommendations: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                location: { type: "string" },
+                mealType: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "any"] },
+                cuisine: { type: "string" },
+                priceRange: { type: "string", enum: ["$", "$$", "$$$", "$$$$"] },
+                estimatedCost: { type: "integer", minimum: 5, maximum: 200 },
+                reason: { type: "string" },
+                reservationTips: { type: "string" },
+                dietaryAccommodations: {
+                  type: "array",
+                  items: { type: "string" }
+                },
+                specialFeatures: {
+                  type: "array",
+                  items: { type: "string" }
+                }
+              },
+              required: ["name", "location", "mealType", "cuisine", "priceRange", "estimatedCost", "reason", "reservationTips", "dietaryAccommodations", "specialFeatures"],
+              additionalProperties: false
+            }
+          },
+          generalTips: {
+            type: "array",
+            items: { type: "string" }
+          }
+        },
+        required: ["recommendations", "generalTips"],
+        additionalProperties: false
+      }
+    }
+  },
+
+  rideRecommendations: {
+    type: "json_schema",
+    json_schema: {
+      name: "ride_recommendations",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          recommendations: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                park: { type: "string" },
+                land: { type: "string" },
+                thrillLevel: { type: "string", enum: ["mild", "moderate", "intense"] },
+                heightRequirement: { type: "string" },
+                reason: { type: "string" },
+                bestTime: { type: "string" },
+                lightningLaneRecommended: { type: "boolean" },
+                waitTimeStrategy: { type: "string" },
+                ageAppropriate: {
+                  type: "array",
+                  items: { type: "string" }
+                },
+                accessibilityNotes: { type: "string" }
+              },
+              required: ["name", "park", "land", "thrillLevel", "heightRequirement", "reason", "bestTime", "lightningLaneRecommended", "waitTimeStrategy", "ageAppropriate", "accessibilityNotes"],
+              additionalProperties: false
+            }
+          },
+          generalStrategy: {
+            type: "array",
+            items: { type: "string" }
+          }
+        },
+        required: ["recommendations", "generalStrategy"],
+        additionalProperties: false
+      }
+    }
+  },
+
+  tripSummary: {
+    type: "json_schema",
+    json_schema: {
+      name: "trip_summary",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          overview: { type: "string" },
+          highlights: {
+            type: "array",
+            items: { type: "string" }
+          },
+          preparationTips: {
+            type: "array",
+            items: { type: "string" }
+          },
+          budgetEstimate: {
+            type: "object",
+            properties: {
+              lowEnd: { type: "integer" },
+              highEnd: { type: "integer" },
+              notes: { type: "string" }
+            },
+            required: ["lowEnd", "highEnd", "notes"],
+            additionalProperties: false
+          },
+          encouragingMessage: { type: "string" }
+        },
+        required: ["title", "overview", "highlights", "preparationTips", "budgetEstimate", "encouragingMessage"],
+        additionalProperties: false
+      }
+    }
+  }
+};
+
 module.exports = async function handler(req, res) {
   // Only allow POST requests
   if (req.method !== 'POST') {
@@ -51,7 +287,7 @@ async function handleItinerarySuggestions(req, res, data) {
     const { trip, preferences, prompt: customPrompt } = data;
     
     // Use custom prompt if provided, otherwise fall back to default
-    let systemMessage = 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.';
+    let systemMessage = 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. You must respond with structured data following the exact JSON schema provided. Provide helpful, practical advice in the specified format.';
     let userPromptTemplate = `Create a personalized Disney trip itinerary suggestion for:
       
 Trip Details:
@@ -67,37 +303,27 @@ Group Preferences:
 - Mobility level: ${preferences.mobility}
 - Thrill preference: ${preferences.thrillLevel}
 
-Please provide:
-1. Recommended park order for each day
-2. Must-do attractions for this group
-3. Dining suggestions
-4. General tips and strategies
-5. Special considerations for the group's needs
-
-Keep it practical and actionable, focusing on real Disney World experiences.`;
+Provide recommendations for park order, must-do attractions, dining, tips, and special considerations. Focus on real Disney World experiences and practical advice.`;
 
     // Use custom prompt if provided
     if (customPrompt && customPrompt.systemMessage) {
-      systemMessage = customPrompt.systemMessage;
+      systemMessage = customPrompt.systemMessage + ' You must respond with structured data following the exact JSON schema provided.';
     }
     if (customPrompt && customPrompt.userPromptTemplate) {
-      userPromptTemplate = customPrompt.userPromptTemplate;
+      userPromptTemplate = customPrompt.userPromptTemplate
+        .replace(/\{\{trip\.days\.length\}\}/g, trip.days.length)
+        .replace(/\{\{trip\.resort\?\.name \|\| 'Not specified'\}\}/g, trip.resort?.name || 'Not specified')
+        .replace(/\{\{trip\.startDate\}\}/g, trip.startDate)
+        .replace(/\{\{trip\.endDate\}\}/g, trip.endDate)
+        .replace(/\{\{preferences\.groupSize\}\}/g, preferences.groupSize)
+        .replace(/\{\{preferences\.ages\.join\(', '\)\}\}/g, preferences.ages.join(', '))
+        .replace(/\{\{preferences\.interests\.join\(', '\)\}\}/g, preferences.interests.join(', '))
+        .replace(/\{\{preferences\.budget\}\}/g, preferences.budget)
+        .replace(/\{\{preferences\.mobility\}\}/g, preferences.mobility)
+        .replace(/\{\{preferences\.thrillLevel\}\}/g, preferences.thrillLevel);
     }
 
-    // Replace template variables in user prompt
-    const finalUserPrompt = userPromptTemplate
-      .replace(/\{\{trip\.days\.length\}\}/g, trip.days.length)
-      .replace(/\{\{trip\.resort\?\.name \|\| 'Not specified'\}\}/g, trip.resort?.name || 'Not specified')
-      .replace(/\{\{trip\.startDate\}\}/g, trip.startDate)
-      .replace(/\{\{trip\.endDate\}\}/g, trip.endDate)
-      .replace(/\{\{preferences\.groupSize\}\}/g, preferences.groupSize)
-      .replace(/\{\{preferences\.ages\.join\(', '\)\}\}/g, preferences.ages.join(', '))
-      .replace(/\{\{preferences\.interests\.join\(', '\)\}\}/g, preferences.interests.join(', '))
-      .replace(/\{\{preferences\.budget\}\}/g, preferences.budget)
-      .replace(/\{\{preferences\.mobility\}\}/g, preferences.mobility)
-      .replace(/\{\{preferences\.thrillLevel\}\}/g, preferences.thrillLevel);
-
-    const maxTokens = customPrompt?.maxTokens || 1000;
+    const maxTokens = customPrompt?.maxTokens || 1500;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -108,15 +334,15 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
         },
         {
           role: 'user',
-          content: finalUserPrompt
+          content: userPromptTemplate
         }
       ],
-      max_tokens: maxTokens
+      max_tokens: maxTokens,
+      response_format: schemas.itinerarySuggestions
     });
 
-    return res.json({ 
-      result: response.choices[0]?.message?.content || 'Unable to generate suggestions at this time.' 
-    });
+    const result = JSON.parse(response.choices[0]?.message?.content || '{}');
+    return res.json({ result });
   } catch (error) {
     console.error('Error in handleItinerarySuggestions:', error);
     return res.status(500).json({ 
@@ -129,49 +355,40 @@ async function handleDayOptimization(req, res, data) {
   try {
     const { day, preferences, prompt: customPrompt } = data;
     
-    // Use custom prompt if provided, otherwise fall back to default
-    let systemMessage = 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.';
-    let userPromptTemplate = `Optimize this Disney park day plan:
-
-Park: {{day.park?.name || 'Not specified'}}
-Current Activities: {{activities.join(', ')}}
-
-Optimization Preferences:
-- Priority: {{preferences.priority}}
-- Crowd tolerance: {{preferences.crowdTolerance}}
-- Walking preference: {{preferences.walkingDistance}}
-
-Please provide:
-1. Suggested order of activities
-2. Estimated time for each activity
-3. Practical tips for this day
-4. Potential issues or warnings
-
-Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
-
-    // Use custom prompt if provided
-    if (customPrompt && customPrompt.systemMessage) {
-      systemMessage = customPrompt.systemMessage;
-    }
-    if (customPrompt && customPrompt.userPromptTemplate) {
-      userPromptTemplate = customPrompt.userPromptTemplate;
-    }
-
+    let systemMessage = 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment. You must respond with structured data following the exact JSON schema provided.';
+    
     const activities = [
       ...day.rides.map(r => `Ride: ${r.name}`),
       ...day.food.map(f => `Dining: ${f.name} at ${f.timeSlot || 'flexible time'}`),
       ...day.reservations.map(r => `Reservation: ${r.name} at ${r.time}`)
     ];
 
-    // Replace template variables in user prompt
-    const finalUserPrompt = userPromptTemplate
-      .replace(/\{\{day\.park\?\.name \|\| 'Not specified'\}\}/g, day.park?.name || 'Not specified')
-      .replace(/\{\{activities\.join\(', '\)\}\}/g, activities.join(', '))
-      .replace(/\{\{preferences\.priority\}\}/g, preferences.priority)
-      .replace(/\{\{preferences\.crowdTolerance\}\}/g, preferences.crowdTolerance)
-      .replace(/\{\{preferences\.walkingDistance\}\}/g, preferences.walkingDistance);
+    let userPromptTemplate = `Optimize this Disney park day plan:
 
-         const maxTokens = customPrompt?.maxTokens || 800;
+Park: ${day.park?.name || 'Not specified'}
+Current Activities: ${activities.join(', ')}
+
+Optimization Preferences:
+- Priority: ${preferences.priority}
+- Crowd tolerance: ${preferences.crowdTolerance}
+- Walking preference: ${preferences.walkingDistance}
+
+Provide a suggested order with times, tips, warnings, and alternative options.`;
+
+    // Use custom prompt if provided
+    if (customPrompt && customPrompt.systemMessage) {
+      systemMessage = customPrompt.systemMessage + ' You must respond with structured data following the exact JSON schema provided.';
+    }
+    if (customPrompt && customPrompt.userPromptTemplate) {
+      userPromptTemplate = customPrompt.userPromptTemplate
+        .replace(/\{\{day\.park\?\.name \|\| 'Not specified'\}\}/g, day.park?.name || 'Not specified')
+        .replace(/\{\{activities\.join\(', '\)\}\}/g, activities.join(', '))
+        .replace(/\{\{preferences\.priority\}\}/g, preferences.priority)
+        .replace(/\{\{preferences\.crowdTolerance\}\}/g, preferences.crowdTolerance)
+        .replace(/\{\{preferences\.walkingDistance\}\}/g, preferences.walkingDistance);
+    }
+
+    const maxTokens = customPrompt?.maxTokens || 1200;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -182,28 +399,15 @@ Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
         },
         {
           role: 'user',
-          content: finalUserPrompt
+          content: userPromptTemplate
         }
       ],
-      max_tokens: 800
+      max_tokens: maxTokens,
+      response_format: schemas.dayOptimization
     });
 
-    const content = response.choices[0]?.message?.content || '';
-    
-    // Try to parse JSON response, fallback to basic structure
-    try {
-      const result = JSON.parse(content);
-      return res.json({ result });
-    } catch {
-      return res.json({
-        result: {
-          suggestedOrder: activities,
-          timeEstimates: {},
-          tips: [content],
-          warnings: []
-        }
-      });
-    }
+    const result = JSON.parse(response.choices[0]?.message?.content || '{}');
+    return res.json({ result });
   } catch (error) {
     console.error('Error in handleDayOptimization:', error);
     return res.status(500).json({ 
@@ -218,7 +422,7 @@ async function handleDiningSuggestions(req, res, data) {
     const { preferences, prompt: customPrompt } = data;
     
     // Use custom prompt if provided, otherwise fall back to default
-    let systemMessage = 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.';
+    let systemMessage = 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies. You must respond with structured data following the exact JSON schema provided.';
     let userPromptTemplate = `Suggest Disney World dining options for:
       
 Preferences:
@@ -229,35 +433,27 @@ Preferences:
 - Group size: ${preferences.groupSize}
 - Special occasions: ${preferences.specialOccasion || 'None'}
 
-Provide 3-5 specific restaurant recommendations. Format each recommendation as:
-
-**Restaurant Name**
-Location: [Park/Area]
-Why it fits: [Explanation of why this matches their preferences]
----`;
+Recommend 3-5 restaurants with detailed information including cuisine type, pricing, special features, and reservation tips.`;
 
     // Use custom prompt if provided
     if (customPrompt && customPrompt.systemMessage) {
-      systemMessage = customPrompt.systemMessage;
+      systemMessage = customPrompt.systemMessage + ' You must respond with structured data following the exact JSON schema provided.';
     }
     if (customPrompt && customPrompt.userPromptTemplate) {
-      userPromptTemplate = customPrompt.userPromptTemplate;
+      userPromptTemplate = customPrompt.userPromptTemplate
+        .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences?.park || 'Any park')
+        .replace(/\{\{preferences\.mealType\}\}/g, preferences?.mealType || 'lunch')
+        .replace(/\{\{preferences\.budget\}\}/g, preferences?.budget || 'medium')
+        .replace(/\{\{preferences\.dietaryRestrictions\?\.join\(', '\) \|\| 'None'\}\}/g, preferences?.dietaryRestrictions?.join(', ') || 'None')
+        .replace(/\{\{preferences\.groupSize\}\}/g, preferences?.groupSize || '2')
+        .replace(/\{\{preferences\.specialOccasion \|\| 'None'\}\}/g, preferences?.specialOccasion || 'None');
     }
 
-    // Replace template variables in user prompt with safety checks
-    const finalUserPrompt = userPromptTemplate
-      .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences?.park || 'Any park')
-      .replace(/\{\{preferences\.mealType\}\}/g, preferences?.mealType || 'lunch')
-      .replace(/\{\{preferences\.budget\}\}/g, preferences?.budget || 'medium')
-      .replace(/\{\{preferences\.dietaryRestrictions\?\.join\(', '\) \|\| 'None'\}\}/g, preferences?.dietaryRestrictions?.join(', ') || 'None')
-      .replace(/\{\{preferences\.groupSize\}\}/g, preferences?.groupSize || '2')
-      .replace(/\{\{preferences\.specialOccasion \|\| 'None'\}\}/g, preferences?.specialOccasion || 'None');
-
-    const maxTokens = customPrompt?.maxTokens || 600;
+    const maxTokens = customPrompt?.maxTokens || 1000;
 
     console.log('=== DINING SUGGESTIONS PROMPT DEBUG ===');
     console.log('System Message:', systemMessage);
-    console.log('User Prompt:', finalUserPrompt);
+    console.log('User Prompt:', userPromptTemplate);
     console.log('Max Tokens:', maxTokens);
     console.log('Custom Prompt Received:', customPrompt ? 'YES' : 'NO');
     console.log('========================================');
@@ -271,96 +467,20 @@ Why it fits: [Explanation of why this matches their preferences]
         },
         {
           role: 'user',
-          content: finalUserPrompt
+          content: userPromptTemplate
         }
       ],
-      max_tokens: maxTokens
+      max_tokens: maxTokens,
+      response_format: schemas.diningRecommendations
     });
 
-    const content = response.choices[0]?.message?.content || '';
+    const result = JSON.parse(response.choices[0]?.message?.content || '{}');
     
-    console.log('OpenAI Response Content:', content);
-    console.log('OpenAI Response Length:', content.length);
-    console.log('OpenAI Response Choices:', response.choices?.length || 0);
-    console.log('OpenAI Full Response:', JSON.stringify(response, null, 2));
-    
-    // Try to parse the AI response into multiple recommendations
-    let parsedResults = [];
-    
-    try {
-      // First try to parse as JSON in case AI returns structured data
-      parsedResults = JSON.parse(content);
-      if (!Array.isArray(parsedResults)) {
-        parsedResults = [parsedResults];
-      }
-    } catch {
-      // If not JSON, try to parse the text response into multiple recommendations
-      const sections = content.split('---').filter(section => section.trim());
-      const recommendations = [];
-      
-      for (const section of sections) {
-        const lines = section.split('\n').filter(line => line.trim());
-        if (lines.length === 0) continue;
-        
-        let name = '';
-        let location = preferences?.park || 'Disney World';
-        let reason = '';
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          
-          // Look for restaurant name (bold text or first substantial line)
-          if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
-            name = trimmedLine.replace(/\*\*/g, '').trim();
-          } else if (trimmedLine.startsWith('Location:')) {
-            location = trimmedLine.replace('Location:', '').trim();
-          } else if (trimmedLine.startsWith('Why it fits:')) {
-            reason = trimmedLine.replace('Why it fits:', '').trim();
-          } else if (!name && trimmedLine.length > 0) {
-            // If no bold name found, use first non-empty line
-            name = trimmedLine.replace(/^\d+\.\s*|^[-*•]\s*/, '').trim();
-          } else if (name && !reason && trimmedLine.length > 0) {
-            // If we have a name but no reason, accumulate description
-            reason += (reason ? ' ' : '') + trimmedLine;
-          }
-        }
-        
-        if (name) {
-          recommendations.push({
-            name: name,
-            location: location,
-            reason: reason || 'Great dining option for your preferences',
-            estimatedCost: preferences?.budget === 'low' ? 25 : preferences?.budget === 'medium' ? 50 : 100,
-            reservationTips: 'Book 60 days in advance for best availability'
-          });
-        }
-      }
-      
-      // If we couldn't parse individual recommendations, return the full content as one
-      if (recommendations.length === 0) {
-        recommendations.push({
-          name: 'AI Dining Recommendations',
-          location: preferences?.park || 'Disney World',
-          reason: content,
-          estimatedCost: preferences?.budget === 'low' ? 25 : preferences?.budget === 'medium' ? 50 : 100,
-          reservationTips: 'Book 60 days in advance for best availability'
-        });
-      }
-      
-      parsedResults = recommendations;
-    }
+    console.log('OpenAI Structured Response:', JSON.stringify(result, null, 2));
     
     return res.json({
-      result: parsedResults,
-      debug: {
-        systemMessage: systemMessage,
-        userPrompt: finalUserPrompt,
-        maxTokens: maxTokens,
-        customPromptReceived: customPrompt ? true : false,
-        openAIContent: content,
-        preferencesReceived: preferences,
-        parsedRecommendations: parsedResults.length
-      }
+      result: result.recommendations || [],
+      generalTips: result.generalTips || []
     });
   } catch (error) {
     console.error('Error in handleDiningSuggestions:', error);
@@ -375,35 +495,32 @@ async function handleRideSuggestions(req, res, data) {
     const { preferences, prompt: customPrompt } = data;
     
     // Use custom prompt if provided, otherwise fall back to default
-    let systemMessage = 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.';
+    let systemMessage = 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences. You must respond with structured data following the exact JSON schema provided.';
     let userPromptTemplate = `Suggest Disney World attractions for:
       
 Preferences:
-- Park: {{preferences.park || 'Any park'}}
-- Thrill level: {{preferences.thrillLevel}}
-- Ages in group: {{preferences.ages?.join(', ') || 'Not specified'}}
-- Interests: {{preferences.interests?.join(', ') || 'General'}}
-- Time available: {{preferences.timeAvailable || 'Full day'}}
+- Park: ${preferences.park || 'Any park'}
+- Thrill level: ${preferences.thrillLevel}
+- Ages in group: ${preferences.ages?.join(', ') || 'Not specified'}
+- Interests: ${preferences.interests?.join(', ') || 'General'}
+- Time available: ${preferences.timeAvailable || 'Full day'}
 
-Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`;
+Recommend 5-8 attractions with detailed information including location, wait time strategies, Lightning Lane recommendations, and accessibility notes.`;
 
     // Use custom prompt if provided
     if (customPrompt && customPrompt.systemMessage) {
-      systemMessage = customPrompt.systemMessage;
+      systemMessage = customPrompt.systemMessage + ' You must respond with structured data following the exact JSON schema provided.';
     }
     if (customPrompt && customPrompt.userPromptTemplate) {
-      userPromptTemplate = customPrompt.userPromptTemplate;
+      userPromptTemplate = customPrompt.userPromptTemplate
+        .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences.park || 'Any park')
+        .replace(/\{\{preferences\.thrillLevel\}\}/g, preferences.thrillLevel)
+        .replace(/\{\{preferences\.ages\?\.join\(', '\) \|\| 'Not specified'\}\}/g, preferences.ages?.join(', ') || 'Not specified')
+        .replace(/\{\{preferences\.interests\?\.join\(', '\) \|\| 'General'\}\}/g, preferences.interests?.join(', ') || 'General')
+        .replace(/\{\{preferences\.timeAvailable \|\| 'Full day'\}\}/g, preferences.timeAvailable || 'Full day');
     }
 
-    // Replace template variables in user prompt
-    const finalUserPrompt = userPromptTemplate
-      .replace(/\{\{preferences\.park \|\| 'Any park'\}\}/g, preferences.park || 'Any park')
-      .replace(/\{\{preferences\.thrillLevel\}\}/g, preferences.thrillLevel)
-      .replace(/\{\{preferences\.ages\?\.join\(', '\) \|\| 'Not specified'\}\}/g, preferences.ages?.join(', ') || 'Not specified')
-      .replace(/\{\{preferences\.interests\?\.join\(', '\) \|\| 'General'\}\}/g, preferences.interests?.join(', ') || 'General')
-      .replace(/\{\{preferences\.timeAvailable \|\| 'Full day'\}\}/g, preferences.timeAvailable || 'Full day');
-
-    const maxTokens = customPrompt?.maxTokens || 600;
+    const maxTokens = customPrompt?.maxTokens || 1000;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -414,24 +531,18 @@ Recommend 5-8 attractions with timing strategies and Lightning Lane recommendati
         },
         {
           role: 'user',
-          content: finalUserPrompt
+          content: userPromptTemplate
         }
       ],
-      max_tokens: 600
+      max_tokens: maxTokens,
+      response_format: schemas.rideRecommendations
     });
 
-    const content = response.choices[0]?.message?.content || '';
+    const result = JSON.parse(response.choices[0]?.message?.content || '{}');
     
     return res.json({
-      result: [
-        {
-          name: 'AI-Generated Suggestions',
-          park: preferences.park || 'Disney World',
-          reason: content,
-          bestTime: 'Early morning or evening',
-          lightningLaneRecommended: preferences.thrillLevel === 'intense'
-        }
-      ]
+      result: result.recommendations || [],
+      generalStrategy: result.generalStrategy || []
     });
   } catch (error) {
     console.error('Error in handleRideSuggestions:', error);
@@ -446,36 +557,34 @@ async function handleTripSummary(req, res, data) {
     const { trip, prompt: customPrompt } = data;
     
     // Use custom prompt if provided, otherwise fall back to default
-    let systemMessage = 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.';
-    let userPromptTemplate = `Create a friendly trip summary for this Disney vacation:
-
-Trip: {{trip.name}}
-Duration: {{trip.days.length}} days
-Resort: {{trip.resort?.name || 'Not specified'}}
-Total planned activities: {{totalActivities}}
-
-Create an encouraging summary highlighting what makes this trip special and any tips for success.`;
-
-    // Use custom prompt if provided
-    if (customPrompt && customPrompt.systemMessage) {
-      systemMessage = customPrompt.systemMessage;
-    }
-    if (customPrompt && customPrompt.userPromptTemplate) {
-      userPromptTemplate = customPrompt.userPromptTemplate;
-    }
-
+    let systemMessage = 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries. You must respond with structured data following the exact JSON schema provided.';
+    
     const totalActivities = trip.days.reduce((total, day) => 
       total + day.rides.length + day.food.length + day.reservations.length, 0
     );
 
-    // Replace template variables in user prompt
-    const finalUserPrompt = userPromptTemplate
-      .replace(/\{\{trip\.name\}\}/g, trip.name)
-      .replace(/\{\{trip\.days\.length\}\}/g, trip.days.length)
-      .replace(/\{\{trip\.resort\?\.name \|\| 'Not specified'\}\}/g, trip.resort?.name || 'Not specified')
-      .replace(/\{\{totalActivities\}\}/g, totalActivities);
+    let userPromptTemplate = `Create a friendly trip summary for this Disney vacation:
 
-         const maxTokens = customPrompt?.maxTokens || 300;
+Trip: ${trip.name}
+Duration: ${trip.days.length} days
+Resort: ${trip.resort?.name || 'Not specified'}
+Total planned activities: ${totalActivities}
+
+Create an encouraging summary with highlights, preparation tips, budget estimates, and an encouraging message.`;
+
+    // Use custom prompt if provided
+    if (customPrompt && customPrompt.systemMessage) {
+      systemMessage = customPrompt.systemMessage + ' You must respond with structured data following the exact JSON schema provided.';
+    }
+    if (customPrompt && customPrompt.userPromptTemplate) {
+      userPromptTemplate = customPrompt.userPromptTemplate
+        .replace(/\{\{trip\.name\}\}/g, trip.name)
+        .replace(/\{\{trip\.days\.length\}\}/g, trip.days.length)
+        .replace(/\{\{trip\.resort\?\.name \|\| 'Not specified'\}\}/g, trip.resort?.name || 'Not specified')
+        .replace(/\{\{totalActivities\}\}/g, totalActivities);
+    }
+
+    const maxTokens = customPrompt?.maxTokens || 800;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -486,15 +595,15 @@ Create an encouraging summary highlighting what makes this trip special and any 
         },
         {
           role: 'user',
-          content: finalUserPrompt
+          content: userPromptTemplate
         }
       ],
-      max_tokens: 300
+      max_tokens: maxTokens,
+      response_format: schemas.tripSummary
     });
 
-    return res.json({ 
-      result: response.choices[0]?.message?.content || 'Your Disney trip is going to be magical!' 
-    });
+    const result = JSON.parse(response.choices[0]?.message?.content || '{}');
+    return res.json({ result });
   } catch (error) {
     console.error('Error in handleTripSummary:', error);
     return res.status(500).json({ 

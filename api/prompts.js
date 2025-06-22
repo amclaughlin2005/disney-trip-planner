@@ -9,8 +9,8 @@ const defaultPrompts = [
   {
     id: 'itinerary',
     name: 'Trip Itinerary Suggestions',
-    description: 'Generates personalized Disney World trip itineraries based on preferences',
-    systemMessage: 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. Provide helpful, practical advice.',
+    description: 'Generates personalized Disney World trip itineraries based on preferences using structured output',
+    systemMessage: 'You are a Disney World vacation planning expert with extensive knowledge of all parks, attractions, dining, and logistics. You must respond with structured data following the exact JSON schema provided. Provide helpful, practical advice in the specified format.',
     userPromptTemplate: `Create a personalized Disney trip itinerary suggestion for:
       
 Trip Details:
@@ -26,23 +26,24 @@ Group Preferences:
 - Mobility level: {{preferences.mobility}}
 - Thrill preference: {{preferences.thrillLevel}}
 
-Please provide:
-1. Recommended park order for each day
-2. Must-do attractions for this group
-3. Dining suggestions
-4. General tips and strategies
-5. Special considerations for the group's needs
+Provide structured recommendations including:
+- Brief summary of the itinerary
+- Recommended park order for each day with reasoning
+- Must-do attractions categorized by priority
+- Dining recommendations with meal types and locations
+- General tips and strategies
+- Special considerations for the group's needs
 
-Keep it practical and actionable, focusing on real Disney World experiences.`,
+Focus on real Disney World experiences and practical advice.`,
     category: 'itinerary',
-    maxTokens: 1000,
+    maxTokens: 1500,
     lastModified: new Date().toISOString()
   },
   {
     id: 'optimization',
     name: 'Day Plan Optimization',
-    description: 'Optimizes the order and timing of activities for a Disney park day',
-    systemMessage: 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment.',
+    description: 'Optimizes the order and timing of activities for a Disney park day using structured output',
+    systemMessage: 'You are a Disney World logistics expert. Provide practical scheduling advice to minimize wait times and maximize enjoyment. You must respond with structured data following the exact JSON schema provided.',
     userPromptTemplate: `Optimize this Disney park day plan:
 
 Park: {{day.park?.name || 'Not specified'}}
@@ -53,22 +54,23 @@ Optimization Preferences:
 - Crowd tolerance: {{preferences.crowdTolerance}}
 - Walking preference: {{preferences.walkingDistance}}
 
-Please provide:
-1. Suggested order of activities
-2. Estimated time for each activity
-3. Practical tips for this day
-4. Potential issues or warnings
+Provide structured recommendations including:
+- Suggested order of activities with specific times and durations
+- Priority rankings for each activity
+- Practical tips for this day
+- Potential issues or warnings
+- Alternative options if plans change
 
-Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`,
+Focus on minimizing wait times and maximizing guest satisfaction.`,
     category: 'optimization',
-    maxTokens: 800,
+    maxTokens: 1200,
     lastModified: new Date().toISOString()
   },
   {
     id: 'dining',
     name: 'Dining Recommendations',
-    description: 'Suggests Disney World restaurants based on preferences and dietary needs',
-    systemMessage: 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies.',
+    description: 'Suggests Disney World restaurants based on preferences and dietary needs using structured output',
+    systemMessage: 'You are a Disney World dining expert with knowledge of all restaurants, menus, and reservation strategies. You must respond with structured data following the exact JSON schema provided.',
     userPromptTemplate: `Suggest Disney World dining options for:
       
 Preferences:
@@ -79,21 +81,26 @@ Preferences:
 - Group size: {{preferences.groupSize}}
 - Special occasions: {{preferences.specialOccasion || 'None'}}
 
-Provide 3-5 specific restaurant recommendations. Format each recommendation as:
+Provide 3-5 restaurant recommendations with structured information including:
+- Restaurant name and location
+- Cuisine type and meal type
+- Price range and estimated cost per person
+- Reason it matches their preferences
+- Reservation tips and strategies
+- Dietary accommodations available
+- Special features or highlights
+- General dining tips for Disney World
 
-**Restaurant Name**
-Location: [Park/Area]
-Why it fits: [Explanation of why this matches their preferences]
----`,
+Focus on restaurants that truly match their preferences and budget.`,
     category: 'dining',
-    maxTokens: 600,
+    maxTokens: 1000,
     lastModified: new Date().toISOString()
   },
   {
     id: 'rides',
     name: 'Attraction Recommendations',
-    description: 'Recommends Disney World attractions based on thrill level and interests',
-    systemMessage: 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences.',
+    description: 'Recommends Disney World attractions based on thrill level and interests using structured output',
+    systemMessage: 'You are a Disney World attractions expert with knowledge of wait times, Lightning Lane strategies, and guest experiences. You must respond with structured data following the exact JSON schema provided.',
     userPromptTemplate: `Suggest Disney World attractions for:
       
 Preferences:
@@ -103,16 +110,25 @@ Preferences:
 - Interests: {{preferences.interests?.join(', ') || 'General'}}
 - Time available: {{preferences.timeAvailable || 'Full day'}}
 
-Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`,
+Recommend 5-8 attractions with detailed structured information including:
+- Attraction name, park, and specific land/area
+- Thrill level and height requirements
+- Reason it matches their preferences
+- Best times to visit and wait time strategies
+- Lightning Lane recommendations
+- Age appropriateness and accessibility notes
+- General strategy tips for maximizing their park experience
+
+Focus on attractions that match their thrill level and group composition.`,
     category: 'rides',
-    maxTokens: 600,
+    maxTokens: 1000,
     lastModified: new Date().toISOString()
   },
   {
     id: 'summary',
     name: 'Trip Summary Generator',
-    description: 'Creates encouraging summaries of planned Disney trips with helpful tips',
-    systemMessage: 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries.',
+    description: 'Creates encouraging summaries of planned Disney trips with helpful tips using structured output',
+    systemMessage: 'You are an enthusiastic Disney vacation planner who creates encouraging and helpful trip summaries. You must respond with structured data following the exact JSON schema provided.',
     userPromptTemplate: `Create a friendly trip summary for this Disney vacation:
 
 Trip: {{trip.name}}
@@ -120,9 +136,17 @@ Duration: {{trip.days.length}} days
 Resort: {{trip.resort?.name || 'Not specified'}}
 Total planned activities: {{totalActivities}}
 
-Create an encouraging summary highlighting what makes this trip special and any tips for success.`,
+Create a structured summary including:
+- Engaging title for the trip
+- Overview of what makes this trip special
+- Key highlights and memorable experiences
+- Preparation tips for success
+- Budget estimate with helpful notes
+- Encouraging message to build excitement
+
+Focus on creating enthusiasm while providing practical value.`,
     category: 'summary',
-    maxTokens: 300,
+    maxTokens: 800,
     lastModified: new Date().toISOString()
   }
 ];
@@ -182,23 +206,9 @@ async function handleGetPrompts(req, res) {
       return res.json({ prompts: defaultPrompts });
     }
 
-    // Get the latest prompts file (prefer timestamped files over legacy prompts.json)
-    let promptsBlob = null;
-    
-    // First, look for timestamped files and get the most recent one
-    const timestampedBlobs = blobs.filter(blob => blob.pathname.startsWith('ai-prompts/prompts-'));
-    if (timestampedBlobs.length > 0) {
-      // Sort by filename (timestamp) to get the most recent
-      timestampedBlobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
-      promptsBlob = timestampedBlobs[0];
-      console.log('Using most recent timestamped prompts file:', promptsBlob.pathname);
-    } else {
-      // Fall back to legacy prompts.json if no timestamped files exist
-      promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
-      if (promptsBlob) {
-        console.log('Using legacy prompts.json file');
-      }
-    }
+    // Look for the standard prompts file
+    const promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
+    console.log('Looking for ai-prompts/prompts.json, found:', promptsBlob ? 'YES' : 'NO');
     
     if (!promptsBlob) {
       // No prompts file found, initialize with defaults
@@ -210,7 +220,20 @@ async function handleGetPrompts(req, res) {
     // Fetch the prompts data
     console.log('Fetching prompts from:', promptsBlob.url);
     const response = await fetch(promptsBlob.url);
-    const prompts = await response.json();
+    
+    if (!response.ok) {
+      console.log('Failed to fetch prompts, status:', response.status);
+      throw new Error(`Failed to fetch prompts: ${response.statusText}`);
+    }
+    
+    const responseText = await response.text();
+    if (!responseText || responseText.startsWith('Blob not found')) {
+      console.log('Blob not found or empty, initializing with defaults');
+      await initializeDefaultPrompts();
+      return res.json({ prompts: defaultPrompts });
+    }
+    
+    const prompts = JSON.parse(responseText);
     console.log('Retrieved', prompts.length, 'prompts from blob storage');
     
     return res.json({ prompts });
@@ -239,33 +262,14 @@ async function handleSavePrompts(req, res) {
       return res.status(500).json({ error: 'Blob storage not configured' });
     }
 
-    // Save prompts to Vercel Blob with unique filename approach
-    const timestamp = Date.now();
-    const filename = `ai-prompts/prompts-${timestamp}.json`;
+    // Save prompts to Vercel Blob with overwrite allowed
+    const filename = `ai-prompts/prompts.json`;
     
-    // Create new blob with timestamp
     const blob = await put(filename, JSON.stringify(prompts, null, 2), {
       access: 'public',
-      contentType: 'application/json'
+      contentType: 'application/json',
+      allowOverwrite: true
     });
-    
-    // Clean up old prompts files (keep only the latest)
-    try {
-      const { blobs } = await list({ prefix: 'ai-prompts/prompts-' });
-      const sortedBlobs = blobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
-      
-      // Delete all but the most recent one
-      for (let i = 1; i < sortedBlobs.length; i++) {
-        try {
-          await del(sortedBlobs[i].pathname);
-          console.log('Cleaned up old prompts file:', sortedBlobs[i].pathname);
-        } catch (cleanupError) {
-          console.log('Could not delete old file:', sortedBlobs[i].pathname);
-        }
-      }
-    } catch (cleanupError) {
-      console.log('Could not perform cleanup:', cleanupError.message);
-    }
 
     console.log('Prompts saved successfully to blob storage:', blob.url);
     return res.json({ success: true, url: blob.url });
@@ -285,17 +289,7 @@ async function handleGetPrompt(req, res) {
 
     // Get all prompts and find the one for this category
     const { blobs } = await list({ prefix: 'ai-prompts/' });
-    let promptsBlob = null;
-    
-    // First, look for timestamped files and get the most recent one
-    const timestampedBlobs = blobs.filter(blob => blob.pathname.startsWith('ai-prompts/prompts-'));
-    if (timestampedBlobs.length > 0) {
-      timestampedBlobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
-      promptsBlob = timestampedBlobs[0];
-    } else {
-      // Fall back to legacy prompts.json if no timestamped files exist
-      promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
-    }
+    const promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
     
     if (!promptsBlob) {
       // No prompts exist, return default for this category
@@ -366,13 +360,28 @@ async function initializeDefaultPrompts() {
       throw new Error('Blob storage not configured');
     }
 
-    // Create initial prompts file with timestamp
-    const timestamp = Date.now();
-    const filename = `ai-prompts/prompts-${timestamp}.json`;
+    // Clean up any existing prompts files first
+    try {
+      const { blobs } = await list({ prefix: 'ai-prompts/' });
+      for (const blob of blobs) {
+        try {
+          await del(blob.pathname);
+          console.log('Deleted existing prompts file:', blob.pathname);
+        } catch (deleteError) {
+          console.log('Could not delete file:', blob.pathname, deleteError.message);
+        }
+      }
+    } catch (listError) {
+      console.log('Could not list existing files:', listError.message);
+    }
+
+    // Create initial prompts file
+    const filename = `ai-prompts/prompts.json`;
     
     const blob = await put(filename, JSON.stringify(defaultPrompts, null, 2), {
       access: 'public',
-      contentType: 'application/json'
+      contentType: 'application/json',
+      allowOverwrite: true
     });
     console.log('Default prompts initialized successfully in blob storage:', blob.url);
     return blob;

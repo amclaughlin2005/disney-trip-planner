@@ -49,10 +49,12 @@ const getCurrentPrompts = async (): Promise<AIPrompt[]> => {
 // Get specific prompt by category from blob storage
 const getPromptByCategory = async (category: AIPrompt['category']): Promise<AIPrompt | null> => {
   try {
+    console.log('getPromptByCategory called for category:', category);
     const apiUrl = process.env.NODE_ENV === 'development' 
       ? 'http://localhost:3001/api/prompts'
       : '/api/prompts';
     
+    console.log('Making request to:', apiUrl);
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -61,12 +63,18 @@ const getPromptByCategory = async (category: AIPrompt['category']): Promise<AIPr
       body: JSON.stringify({ action: 'getPrompt', category }),
     });
 
+    console.log('Response status:', response.status);
     if (!response.ok) {
       throw new Error(`Failed to fetch prompt: ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('Retrieved prompt data:', data);
     console.log('Retrieved prompt for category:', category, data.prompt ? 'FOUND' : 'NOT FOUND');
+    if (data.prompt) {
+      console.log('Prompt name:', data.prompt.name);
+      console.log('Prompt system message preview:', data.prompt.systemMessage?.substring(0, 50) + '...');
+    }
     return data.prompt || null;
   } catch (error) {
     console.error('Error loading prompt from blob storage:', error);
@@ -135,26 +143,42 @@ export interface OptimizationPreferences {
 }
 
 export interface DayOptimization {
-  suggestedOrder: string[];
-  timeEstimates: { [key: string]: string };
+  suggestedOrder: Array<{
+    activity: string;
+    suggestedTime: string;
+    estimatedDuration: string;
+    priority: number;
+  }>;
   tips: string[];
   warnings: string[];
+  alternativeOptions: string[];
 }
 
 export interface DiningSuggestion {
   name: string;
   location: string;
-  reason: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'any';
+  cuisine: string;
+  priceRange: '$' | '$$' | '$$$' | '$$$$';
   estimatedCost: number;
+  reason: string;
   reservationTips: string;
+  dietaryAccommodations: string[];
+  specialFeatures: string[];
 }
 
 export interface RideSuggestion {
   name: string;
   park: string;
+  land: string;
+  thrillLevel: 'mild' | 'moderate' | 'intense';
+  heightRequirement: string;
   reason: string;
   bestTime: string;
   lightningLaneRecommended: boolean;
+  waitTimeStrategy: string;
+  ageAppropriate: string[];
+  accessibilityNotes: string;
 }
 
 // OpenAI implementation using secure API
@@ -183,9 +207,14 @@ export const openAIService: AIService = {
 
   async suggestDining(preferences: DiningPreferences): Promise<DiningSuggestion[]> {
     try {
+      console.log('Frontend: Getting prompt for dining category...');
       const prompt = await getPromptByCategory('dining');
       console.log('Frontend: Retrieved prompt for dining:', prompt);
+      console.log('Frontend: Prompt name:', prompt?.name);
+      console.log('Frontend: Prompt system message:', prompt?.systemMessage?.substring(0, 100) + '...');
+      
       const response = await callSecureAPI('suggestDining', { preferences, prompt });
+      console.log('Frontend: API response received:', response);
       return response.result;
     } catch (error) {
       console.error('OpenAI API error:', error);
@@ -229,9 +258,9 @@ export const fallbackAIService: AIService = {
   async optimizeDayPlan(): Promise<DayOptimization> {
     return {
       suggestedOrder: [],
-      timeEstimates: {},
       tips: ['AI optimization is temporarily unavailable'],
-      warnings: ['Please try again later']
+      warnings: ['Please try again later'],
+      alternativeOptions: []
     };
   },
 

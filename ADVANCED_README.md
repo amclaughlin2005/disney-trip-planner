@@ -35,10 +35,72 @@ The application implements a sophisticated three-tier user management system:
 │                     │    │                     │    │                     │
 │ • Components        │◄──►│ • /api/openai       │◄──►│ • OpenAI API        │
 │ • Hooks             │    │ • /api/blob         │    │ • Vercel Blob       │
-│ • Services          │    │ • Authentication    │    │ • Clerk Auth        │
-│ • Utils             │    │                     │    │                     │
+│ • Services          │    │ • /api/prompts      │    │ • Clerk Auth        │
+│ • Utils             │    │ • Authentication    │    │                     │
 └─────────────────────┘    └─────────────────────┘    └─────────────────────┘
 ```
+
+## 🤖 AI-Powered Features with Structured Outputs
+
+### **OpenAI Integration with Structured Outputs**
+The application leverages OpenAI's latest structured outputs feature to ensure reliable, type-safe AI responses:
+
+#### **Structured Response Types**
+- **Itinerary Suggestions**: JSON schema with park recommendations, must-do attractions, dining suggestions, and tips
+- **Day Plan Optimization**: Structured activity ordering with timing, priorities, and alternatives
+- **Dining Recommendations**: Detailed restaurant data with cuisine, pricing, accessibility, and reservation tips
+- **Attraction Suggestions**: Comprehensive ride data with thrill levels, wait strategies, and accessibility notes
+- **Trip Summaries**: Structured trip overviews with highlights, budget estimates, and preparation tips
+
+#### **Schema Validation**
+All AI responses are validated against strict JSON schemas using OpenAI's `strict: true` mode:
+
+```javascript
+const schemas = {
+  itinerarySuggestions: {
+    type: "json_schema",
+    json_schema: {
+      name: "itinerary_suggestions",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          parkOrder: { type: "array", items: { /* ... */ } },
+          mustDoAttractions: { type: "array", items: { /* ... */ } },
+          // ... additional structured fields
+        },
+        required: ["summary", "parkOrder", "mustDoAttractions"],
+        additionalProperties: false
+      }
+    }
+  }
+};
+```
+
+#### **AI Services Architecture**
+- **Secure API Route**: All OpenAI calls go through `/api/openai` to protect API keys
+- **Dynamic Prompt System**: Prompts stored in Vercel Blob storage with admin management
+- **Fallback Handling**: Graceful degradation when AI services are unavailable
+- **Type Safety**: Full TypeScript interfaces matching JSON schemas
+
+### **AI Prompt Management System**
+Super admins can manage all AI behavior through the admin panel:
+
+#### **Prompt Categories**
+- **Itinerary**: Trip planning and park recommendations
+- **Optimization**: Daily schedule optimization
+- **Dining**: Restaurant recommendations and reservation strategies
+- **Rides**: Attraction suggestions and wait time strategies
+- **Summary**: Trip summary generation and encouragement
+
+#### **Prompt Editor Features**
+- **Template Variables**: Support for dynamic content with `{{variable}}` syntax
+- **Real-time Preview**: See how templates will render with sample data
+- **Version Control**: Track modifications with last modified timestamps
+- **Bulk Operations**: Reset individual prompts or all prompts to defaults
+- **Category Organization**: Color-coded categories for easy management
+- **Token Limits**: Configurable max tokens per prompt category
 
 ## 🛣️ Routing System
 
@@ -132,6 +194,7 @@ const AdminRoute = ({ children }) => {
   - Users: Complete user management with assignment controls
   - Accounts: Account CRUD operations with user lists
   - Impersonation: Active impersonation status and controls
+  - **AI Prompts**: Comprehensive AI prompt management system
 - **Security**: Cannot impersonate other super admins, audit logging
 
 #### **Trip Management Core**
@@ -262,7 +325,7 @@ const AdminRoute = ({ children }) => {
 #### **AI Integration**
 
 ##### **`AIAssistant.tsx`** - AI-Powered Planning
-- **Purpose**: Provides intelligent trip planning assistance via OpenAI
+- **Purpose**: Provides intelligent trip planning assistance via OpenAI with customizable prompts
 - **AI Features**:
   - **Itinerary Suggestions**: Personalized recommendations based on group preferences
   - **Day Optimization**: Reorders activities to minimize wait times and maximize efficiency
@@ -277,6 +340,44 @@ const AdminRoute = ({ children }) => {
   - Dietary restrictions and allergies
 - **Integration**: Secure API calls to OpenAI via server-side proxy using o3-mini model
 - **Security**: API key protection, rate limiting, content filtering
+
+##### **AI Prompt Management System** - Custom AI Behavior Control
+- **Purpose**: Comprehensive system for customizing AI responses through the admin panel
+- **Access**: Super Admin only feature accessible through Admin Panel → AI Prompts tab
+- **Prompt Categories**:
+  - **Itinerary**: Controls how AI generates full trip itineraries
+  - **Optimization**: Manages AI day optimization recommendations
+  - **Dining**: Customizes restaurant and meal suggestions
+  - **Rides**: Controls attraction and ride recommendations
+  - **Summary**: Manages trip summary generation and encouragement
+- **Features**:
+  - **Full Prompt Editor**: Rich text editor for system messages and user prompt templates
+  - **Template Variables**: Support for dynamic content insertion ({{variable}} syntax)
+  - **Category Organization**: Color-coded categories for easy identification
+  - **Token Limit Management**: Configurable token limits per prompt type
+  - **Reset Functionality**: Individual prompt reset or bulk reset to defaults
+  - **Last Modified Tracking**: Audit trail for prompt changes
+  - **Real-time Preview**: System message preview with truncation for long prompts
+- **Storage Architecture**:
+  - **Vercel Blob Storage**: Cloud-based prompt storage with timestamped files
+  - **Automatic Cleanup**: Old prompt files are automatically removed
+  - **Fallback System**: Graceful fallback to default prompts if custom prompts fail
+  - **File Priority**: Prefers timestamped files over legacy files for better versioning
+- **Technical Implementation**:
+  - **Frontend Service**: Async prompt retrieval with caching
+  - **Backend Integration**: Custom prompts seamlessly integrated into OpenAI calls
+  - **Template Processing**: Server-side variable replacement in prompt templates
+  - **Error Handling**: Comprehensive error handling with debugging capabilities
+  - **Development Testing**: Built-in test endpoints for prompt verification
+
+##### **`TestPrompts.tsx`** - AI Prompt Testing Interface
+- **Purpose**: Development component for testing custom AI prompts
+- **Features**:
+  - Direct prompt testing without UI interaction
+  - Real-time debugging of prompt retrieval and usage
+  - Verification of custom prompt markers in AI responses
+  - Comprehensive logging for troubleshooting
+- **Usage**: Temporary component for development and debugging purposes
 
 ### **Hooks (`src/hooks/`)**
 
@@ -325,13 +426,20 @@ const AdminRoute = ({ children }) => {
 ### **Services (`src/services/`)**
 
 #### **`openai.ts`** - AI Service Integration
-- **Purpose**: Secure integration with OpenAI API for trip planning assistance
+- **Purpose**: Secure integration with OpenAI API for trip planning assistance with custom prompt support
 - **Features**:
   - Environment-aware API endpoint selection (development vs production)
-  - Prompt engineering for Disney-specific recommendations
-  - Response parsing and formatting
+  - Custom prompt retrieval and integration
+  - Dynamic prompt engineering for Disney-specific recommendations
+  - Response parsing and formatting with custom prompt markers
   - Error handling and fallback responses
   - Rate limiting and cost management
+  - Comprehensive debugging and logging capabilities
+- **Custom Prompt Integration**:
+  - Async prompt retrieval from Vercel Blob storage
+  - Fallback to default prompts when custom prompts unavailable
+  - Template variable replacement for dynamic content
+  - Category-based prompt selection (itinerary, dining, rides, etc.)
 - **Development**: Uses `http://localhost:3001/api/openai` in development mode
 - **Production**: Uses `/api/openai` for Vercel serverless functions
 - **Security**: API key protection via environment variables and server-side proxy
@@ -400,19 +508,79 @@ const AdminRoute = ({ children }) => {
 - **Parallel Requests**: Simultaneous data fetching where possible
 - **Error Boundaries**: Graceful error handling without app crashes
 
+## 🔧 Backend API Architecture
+
+### **API Routes (`api/`)**
+
+#### **`openai.js`** - OpenAI API Integration
+- **Purpose**: Server-side proxy for secure OpenAI API access with custom prompt support
+- **Endpoints**: 
+  - `POST /api/openai` - Main AI generation endpoint
+  - `GET /api/test-frontend` - Development testing endpoint
+- **Features**:
+  - Custom prompt integration from Vercel Blob storage
+  - Template variable replacement ({{variable}} syntax)
+  - Comprehensive debugging and logging
+  - Fallback to default prompts when custom prompts unavailable
+  - Request validation and error handling
+- **Custom Prompt Flow**:
+  1. Receives request with prompt category
+  2. Retrieves custom prompts from blob storage
+  3. Replaces template variables with request data
+  4. Sends customized prompt to OpenAI
+  5. Returns AI response with debug information
+
+#### **`prompts.js`** - AI Prompt Management API
+- **Purpose**: Complete CRUD operations for AI prompt management
+- **Endpoints**:
+  - `GET /api/prompts` - Retrieve all custom prompts
+  - `POST /api/prompts` - Save/update custom prompts
+- **Storage Architecture**:
+  - **Timestamped Files**: Uses `prompts-{timestamp}.json` format for versioning
+  - **Automatic Cleanup**: Removes old prompt files, keeps only latest
+  - **File Priority Logic**: Prefers timestamped files over legacy `prompts.json`
+  - **Fallback System**: Initializes default prompts if none exist
+- **Features**:
+  - Comprehensive error handling and debugging
+  - Vercel Blob integration with overwrite protection
+  - Default prompt initialization and management
+  - File listing and cleanup utilities
+
+#### **`blob.js`** - Cloud Storage Management
+- **Purpose**: Vercel Blob storage integration for trip data
+- **Features**: File upload, download, and management for trip persistence
+
+#### **`test.js`** - Development Testing Utilities
+- **Purpose**: Testing endpoints for development and debugging
+
+### **`server.js`** - Development Server
+- **Purpose**: Local development API server with environment variable support
+- **Features**:
+  - **Environment Loading**: Proper `.env` file loading with `dotenv`
+  - **CORS Configuration**: Cross-origin request handling for React frontend
+  - **Route Management**: Express.js routing for all API endpoints
+  - **Development Testing**: Built-in test endpoints for prompt verification
+  - **Error Handling**: Comprehensive error logging and debugging
+- **Environment Variables**:
+  - `OPENAI_API_KEY`: OpenAI API authentication
+  - `BLOB_READ_WRITE_TOKEN`: Vercel Blob storage access
+- **Port Configuration**: Runs on port 3001 for development
+
 ## 🚀 Deployment & Production
 
 ### **Environment Configuration**
 - **Clerk Authentication**: `REACT_APP_CLERK_PUBLISHABLE_KEY`
-- **OpenAI Integration**: `OPENAI_API_KEY` (server-side)
-- **Vercel Blob Storage**: `BLOB_READ_WRITE_TOKEN`
+- **OpenAI Integration**: `OPENAI_API_KEY` (server-side only)
+- **Vercel Blob Storage**: `BLOB_READ_WRITE_TOKEN` (server-side only)
 - **Super Admin Email**: Configured in code for security
+- **Environment File Format**: Single-line variables (no multi-line values)
 
 ### **Development Setup**
 - **Local Development**: Requires separate API server (`npm run dev`)
 - **API Endpoints**: Development server runs on port 3001
 - **Environment Detection**: Automatic API endpoint selection based on `NODE_ENV`
-- **Dependencies**: Express, CORS, and Concurrently for development server
+- **Dependencies**: Express, CORS, dotenv, and Concurrently for development server
+- **Environment Loading**: Automatic `.env` file loading in development server
 
 ### **CI/CD Pipeline**
 - **GitHub Integration**: Automatic deployment on push
@@ -437,6 +605,18 @@ const AdminRoute = ({ children }) => {
 5. **Performance Issues**: Optimized state management and re-rendering
 6. **OpenAI API Integration**: Fixed 404 errors in local development by creating separate development server
 7. **OpenAI Model Update**: Upgraded from GPT-3.5-turbo to o3-mini for improved AI assistance
+
+### **AI Prompt Management System Fixes**
+8. **Environment Variable Issues**: Fixed `.env` file formatting and variable naming
+   - Corrected `REACT_APP_BLOB_READ_WRITE_TOKEN` → `BLOB_READ_WRITE_TOKEN`
+   - Corrected `REACT_APP_OPENAI_API_KEY` → `OPENAI_API_KEY`
+   - Fixed multi-line environment variable formatting
+9. **Server Startup Failures**: Added proper environment variable loading with `dotenv` package
+10. **Blob Storage Overwrite Errors**: Implemented timestamped filename system to avoid "blob already exists" errors
+11. **File Priority Logic**: Fixed prompt retrieval to prefer timestamped files over legacy files
+12. **Custom Prompt Integration**: Resolved issues where admin panel changes weren't reflected in AI responses
+13. **Template Variable Processing**: Added proper variable replacement in prompt templates
+14. **Error Handling**: Enhanced debugging and error handling throughout the prompt system
 
 ### **UX Improvements**
 - **Visual Indicators**: Clear impersonation status with orange banners
