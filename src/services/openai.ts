@@ -19,27 +19,59 @@ const isOpenAIConfigured = (): boolean => {
 };
 
 // Get current prompts from localStorage (from admin panel)
-const getCurrentPrompts = (): AIPrompt[] => {
+// Get prompts from Vercel Blob storage via API
+const getCurrentPrompts = async (): Promise<AIPrompt[]> => {
   try {
-    const saved = localStorage.getItem('ai-prompts');
-    if (saved) {
-      return JSON.parse(saved);
+    const apiUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3001/api/prompts'
+      : '/api/prompts';
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'getPrompts' }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch prompts: ${response.statusText}`);
     }
+
+    const data = await response.json();
+    return data.prompts || [];
   } catch (error) {
-    console.error('Error loading prompts from localStorage:', error);
+    console.error('Error loading prompts from blob storage:', error);
+    return [];
   }
-  // Return empty array if no prompts found - API will use defaults
-  return [];
 };
 
-// Get specific prompt by category
-const getPromptByCategory = (category: AIPrompt['category']): AIPrompt | null => {
-  const prompts = getCurrentPrompts();
-  console.log('Available prompts:', prompts.length);
-  console.log('Looking for category:', category);
-  const found = prompts.find(p => p.category === category) || null;
-  console.log('Found prompt:', found ? 'YES' : 'NO');
-  return found;
+// Get specific prompt by category from blob storage
+const getPromptByCategory = async (category: AIPrompt['category']): Promise<AIPrompt | null> => {
+  try {
+    const apiUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3001/api/prompts'
+      : '/api/prompts';
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'getPrompt', category }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch prompt: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Retrieved prompt for category:', category, data.prompt ? 'FOUND' : 'NOT FOUND');
+    return data.prompt || null;
+  } catch (error) {
+    console.error('Error loading prompt from blob storage:', error);
+    return null;
+  }
 };
 
 // Helper function to make secure API calls to our backend
@@ -129,7 +161,7 @@ export interface RideSuggestion {
 export const openAIService: AIService = {
   async generateItinerarySuggestions(trip: Trip, preferences: ItineraryPreferences): Promise<string> {
     try {
-      const prompt = getPromptByCategory('itinerary');
+      const prompt = await getPromptByCategory('itinerary');
       const response = await callSecureAPI('generateItinerarySuggestions', { trip, preferences, prompt });
       return response.result || 'Unable to generate suggestions at this time.';
     } catch (error) {
@@ -140,7 +172,7 @@ export const openAIService: AIService = {
 
   async optimizeDayPlan(day: TripDay, preferences: OptimizationPreferences): Promise<DayOptimization> {
     try {
-      const prompt = getPromptByCategory('optimization');
+      const prompt = await getPromptByCategory('optimization');
       const response = await callSecureAPI('optimizeDayPlan', { day, preferences, prompt });
       return response.result;
     } catch (error) {
@@ -151,7 +183,7 @@ export const openAIService: AIService = {
 
   async suggestDining(preferences: DiningPreferences): Promise<DiningSuggestion[]> {
     try {
-      const prompt = getPromptByCategory('dining');
+      const prompt = await getPromptByCategory('dining');
       console.log('Frontend: Retrieved prompt for dining:', prompt);
       const response = await callSecureAPI('suggestDining', { preferences, prompt });
       return response.result;
@@ -163,7 +195,7 @@ export const openAIService: AIService = {
 
   async suggestRides(preferences: RidePreferences): Promise<RideSuggestion[]> {
     try {
-      const prompt = getPromptByCategory('rides');
+      const prompt = await getPromptByCategory('rides');
       const response = await callSecureAPI('suggestRides', { preferences, prompt });
       return response.result;
     } catch (error) {
@@ -174,7 +206,7 @@ export const openAIService: AIService = {
 
   async generateTripSummary(trip: Trip): Promise<string> {
     try {
-      const prompt = getPromptByCategory('summary');
+      const prompt = await getPromptByCategory('summary');
       const response = await callSecureAPI('generateTripSummary', { trip, prompt });
       return response.result || 'Your Disney trip is going to be magical!';
     } catch (error) {

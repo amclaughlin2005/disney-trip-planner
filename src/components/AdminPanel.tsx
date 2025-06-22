@@ -209,17 +209,32 @@ Create an encouraging summary highlighting what makes this trip special and any 
       setUsers(usersData);
       setAccounts(accountsData);
       
-      // Load prompts from localStorage or initialize with defaults
-      const savedPrompts = localStorage.getItem('ai-prompts');
-      console.log('Admin Panel: Loading prompts from localStorage:', savedPrompts);
-      if (savedPrompts) {
-        const parsedPrompts = JSON.parse(savedPrompts);
-        console.log('Admin Panel: Found saved prompts:', parsedPrompts.length);
-        setPrompts(parsedPrompts);
-      } else {
-        console.log('Admin Panel: No saved prompts found, initializing with defaults');
+      // Load prompts from Vercel Blob storage
+      try {
+        console.log('Admin Panel: Loading prompts from Vercel Blob storage');
+        const apiUrl = process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:3001/api/prompts'
+          : '/api/prompts';
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ action: 'getPrompts' }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Admin Panel: Found saved prompts:', data.prompts.length);
+          setPrompts(data.prompts);
+        } else {
+          console.log('Admin Panel: Failed to load prompts, using defaults');
+          setPrompts(defaultPrompts);
+        }
+      } catch (error) {
+        console.error('Admin Panel: Error loading prompts:', error);
         setPrompts(defaultPrompts);
-        localStorage.setItem('ai-prompts', JSON.stringify(defaultPrompts));
       }
     } catch (error) {
       console.error('Error loading admin data:', error);
@@ -459,11 +474,32 @@ Create an encouraging summary highlighting what makes this trip special and any 
   };
 
   // Prompt management functions
-  const savePrompts = (updatedPrompts: AIPrompt[]) => {
-    console.log('Admin Panel: Saving prompts to localStorage:', updatedPrompts);
-    localStorage.setItem('ai-prompts', JSON.stringify(updatedPrompts));
-    setPrompts(updatedPrompts);
-    console.log('Admin Panel: Prompts saved and state updated');
+  const savePrompts = async (updatedPrompts: AIPrompt[]) => {
+    try {
+      console.log('Admin Panel: Saving prompts to Vercel Blob storage:', updatedPrompts);
+      const apiUrl = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3001/api/prompts'
+        : '/api/prompts';
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'savePrompts', prompts: updatedPrompts }),
+      });
+
+      if (response.ok) {
+        setPrompts(updatedPrompts);
+        console.log('Admin Panel: Prompts saved successfully to blob storage');
+      } else {
+        console.error('Admin Panel: Failed to save prompts');
+        alert('Failed to save prompts. Please try again.');
+      }
+    } catch (error) {
+      console.error('Admin Panel: Error saving prompts:', error);
+      alert('Error saving prompts. Please try again.');
+    }
   };
 
   const handleEditPrompt = (prompt: AIPrompt) => {
@@ -471,7 +507,7 @@ Create an encouraging summary highlighting what makes this trip special and any 
     setShowPromptEditor(true);
   };
 
-  const handleSavePrompt = () => {
+  const handleSavePrompt = async () => {
     if (!editingPrompt) return;
 
     console.log('Admin Panel: Saving edited prompt:', editingPrompt);
@@ -482,13 +518,13 @@ Create an encouraging summary highlighting what makes this trip special and any 
     );
     
     console.log('Admin Panel: Updated prompts array:', updatedPrompts);
-    savePrompts(updatedPrompts);
+    await savePrompts(updatedPrompts);
     setShowPromptEditor(false);
     setEditingPrompt(null);
     alert('Prompt saved successfully!');
   };
 
-  const handleResetPrompt = (promptId: string) => {
+  const handleResetPrompt = async (promptId: string) => {
     if (window.confirm('Are you sure you want to reset this prompt to its default values? This cannot be undone.')) {
       const defaultPrompt = defaultPrompts.find(p => p.id === promptId);
       if (defaultPrompt) {
@@ -497,16 +533,16 @@ Create an encouraging summary highlighting what makes this trip special and any 
             ? { ...defaultPrompt, lastModified: new Date().toISOString() }
             : p
         );
-        savePrompts(updatedPrompts);
+        await savePrompts(updatedPrompts);
         alert('Prompt reset to default successfully!');
       }
     }
   };
 
-  const handleResetAllPrompts = () => {
+  const handleResetAllPrompts = async () => {
     if (window.confirm('Are you sure you want to reset ALL prompts to their default values? This cannot be undone.')) {
       const resetPrompts = defaultPrompts.map(p => ({ ...p, lastModified: new Date().toISOString() }));
-      savePrompts(resetPrompts);
+      await savePrompts(resetPrompts);
       alert('All prompts reset to defaults successfully!');
     }
   };
