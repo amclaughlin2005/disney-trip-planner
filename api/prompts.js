@@ -182,11 +182,27 @@ async function handleGetPrompts(req, res) {
       return res.json({ prompts: defaultPrompts });
     }
 
-    // Get the latest prompts file
-    const promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
+    // Get the latest prompts file (prefer timestamped files over legacy prompts.json)
+    let promptsBlob = null;
+    
+    // First, look for timestamped files and get the most recent one
+    const timestampedBlobs = blobs.filter(blob => blob.pathname.startsWith('ai-prompts/prompts-'));
+    if (timestampedBlobs.length > 0) {
+      // Sort by filename (timestamp) to get the most recent
+      timestampedBlobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
+      promptsBlob = timestampedBlobs[0];
+      console.log('Using most recent timestamped prompts file:', promptsBlob.pathname);
+    } else {
+      // Fall back to legacy prompts.json if no timestamped files exist
+      promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
+      if (promptsBlob) {
+        console.log('Using legacy prompts.json file');
+      }
+    }
+    
     if (!promptsBlob) {
-      // Prompts file doesn't exist, initialize with defaults
-      console.log('prompts.json not found, initializing with defaults');
+      // No prompts file found, initialize with defaults
+      console.log('No prompts file found, initializing with defaults');
       await initializeDefaultPrompts();
       return res.json({ prompts: defaultPrompts });
     }
@@ -223,19 +239,33 @@ async function handleSavePrompts(req, res) {
       return res.status(500).json({ error: 'Blob storage not configured' });
     }
 
-    // Save prompts to Vercel Blob (delete existing first, then create new)
-    try {
-      // Try to delete existing file first
-      await del('ai-prompts/prompts.json');
-    } catch (deleteError) {
-      // File might not exist, which is fine
-      console.log('No existing prompts file to delete (this is fine)');
-    }
+    // Save prompts to Vercel Blob with unique filename approach
+    const timestamp = Date.now();
+    const filename = `ai-prompts/prompts-${timestamp}.json`;
     
-    const blob = await put('ai-prompts/prompts.json', JSON.stringify(prompts, null, 2), {
+    // Create new blob with timestamp
+    const blob = await put(filename, JSON.stringify(prompts, null, 2), {
       access: 'public',
       contentType: 'application/json'
     });
+    
+    // Clean up old prompts files (keep only the latest)
+    try {
+      const { blobs } = await list({ prefix: 'ai-prompts/prompts-' });
+      const sortedBlobs = blobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
+      
+      // Delete all but the most recent one
+      for (let i = 1; i < sortedBlobs.length; i++) {
+        try {
+          await del(sortedBlobs[i].pathname);
+          console.log('Cleaned up old prompts file:', sortedBlobs[i].pathname);
+        } catch (cleanupError) {
+          console.log('Could not delete old file:', sortedBlobs[i].pathname);
+        }
+      }
+    } catch (cleanupError) {
+      console.log('Could not perform cleanup:', cleanupError.message);
+    }
 
     console.log('Prompts saved successfully to blob storage:', blob.url);
     return res.json({ success: true, url: blob.url });
@@ -255,7 +285,17 @@ async function handleGetPrompt(req, res) {
 
     // Get all prompts and find the one for this category
     const { blobs } = await list({ prefix: 'ai-prompts/' });
-    const promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
+    let promptsBlob = null;
+    
+    // First, look for timestamped files and get the most recent one
+    const timestampedBlobs = blobs.filter(blob => blob.pathname.startsWith('ai-prompts/prompts-'));
+    if (timestampedBlobs.length > 0) {
+      timestampedBlobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
+      promptsBlob = timestampedBlobs[0];
+    } else {
+      // Fall back to legacy prompts.json if no timestamped files exist
+      promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
+    }
     
     if (!promptsBlob) {
       // No prompts exist, return default for this category
@@ -326,16 +366,11 @@ async function initializeDefaultPrompts() {
       throw new Error('Blob storage not configured');
     }
 
-    // Try to delete existing file first
-    try {
-      await del('ai-prompts/prompts.json');
-      console.log('Deleted existing prompts file');
-    } catch (deleteError) {
-      // File might not exist, which is fine
-      console.log('No existing prompts file to delete (this is fine)');
-    }
-
-    const blob = await put('ai-prompts/prompts.json', JSON.stringify(defaultPrompts, null, 2), {
+    // Create initial prompts file with timestamp
+    const timestamp = Date.now();
+    const filename = `ai-prompts/prompts-${timestamp}.json`;
+    
+    const blob = await put(filename, JSON.stringify(defaultPrompts, null, 2), {
       access: 'public',
       contentType: 'application/json'
     });
