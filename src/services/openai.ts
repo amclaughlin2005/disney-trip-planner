@@ -302,4 +302,70 @@ export interface RidePreferences {
   timeAvailable?: string;
 }
 
-export { isOpenAIConfigured }; 
+export { isOpenAIConfigured };
+
+export const importTripFromFile = async (fileContent: string): Promise<any> => {
+  const apiUrl = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:3001/api/openai'
+    : '/api/openai';
+
+  console.log('📁 Sending file to AI for parsing...');
+  console.log('📁 File content length:', fileContent.length);
+  console.log('📁 API URL:', apiUrl);
+  
+  try {
+    const requestBody = JSON.stringify({
+      type: 'import',
+      fileContent: fileContent,
+    });
+    
+    console.log('📤 Request body length:', requestBody.length);
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: requestBody,
+    });
+
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (jsonError) {
+        console.error('❌ Failed to parse error response as JSON:', jsonError);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    let result;
+    const responseText = await response.text();
+    try {
+      console.log('📥 Raw response text length:', responseText.length);
+      console.log('📥 Raw response preview:', responseText.substring(0, 200) + '...');
+      
+      result = JSON.parse(responseText);
+      console.log('✅ Frontend JSON parsing successful');
+    } catch (parseError) {
+      console.error('❌ Frontend JSON parse error:', parseError);
+      console.error('❌ Response that failed to parse:', responseText);
+      throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+    }
+    
+    console.log('✅ AI parsing successful, returning:', result.data);
+    return result.data;
+  } catch (error) {
+    console.error('🚨 AI import error:', error);
+    
+    if (error instanceof Error) {
+      throw error;
+    }
+    
+    throw new Error('Failed to process file with AI');
+  }
+}; 

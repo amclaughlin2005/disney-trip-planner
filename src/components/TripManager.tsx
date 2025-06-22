@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Plus, FolderOpen, Download, Upload, Trash2, Cloud, CloudOff, Crown } from 'lucide-react';
+import { Calendar, MapPin, Plus, FolderOpen, Download, Upload, Trash2, Cloud, CloudOff, Crown, Sparkles, Users } from 'lucide-react';
 import { Trip, Resort, RESORTS } from '../types';
-import { createTrip, exportTrip, importTrip, getTripsForUser } from '../utils/tripStorage';
+import { createTrip, exportTrip, importTrip, getTripsForUser, createTripFromAIParsed } from '../utils/tripStorage';
 import { storageService, isCloudStorageConfigured } from '../utils/cloudStorage';
 import { formatDateSafe, getDaysBetween } from '../utils/dateUtils';
 import { useUserManagement } from '../hooks/useUserManagement';
+import { importTripFromFile } from '../services/openai';
+import ProfileManager from './ProfileManager';
 
 interface TripManagerProps {
   currentTrip: Trip | null;
@@ -23,9 +25,12 @@ const TripManager: React.FC<TripManagerProps> = ({
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTripList, setShowTripList] = useState(false);
+  const [showAIImportModal, setShowAIImportModal] = useState(false);
+  const [showProfileManager, setShowProfileManager] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [aiImportLoading, setAiImportLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     startDate: '',
@@ -164,6 +169,176 @@ const TripManager: React.FC<TripManagerProps> = ({
     }
   };
 
+  const handleAIImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !appUser || !userAccount) return;
+    
+    // Reset the input
+    e.target.value = '';
+    
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    setAiImportLoading(true);
+    try {
+      console.log('🎯 Starting AI import process...');
+      console.log('📁 File info:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: new Date(file.lastModified).toISOString()
+      });
+      
+      // Read file content
+      const fileContent = await readFileContent(file);
+      console.log('📄 File content loaded successfully, length:', fileContent.length);
+      
+      // Validate content isn't empty
+      if (!fileContent.trim()) {
+        throw new Error('The uploaded file appears to be empty. Please check your file content.');
+      }
+      
+      // Check for very large content
+      if (fileContent.length > 100000) { // 100KB limit for AI processing
+        throw new Error('File content is too large for AI processing. Please upload a smaller file or break your itinerary into multiple files.');
+      }
+      
+      console.log('📤 Sending to AI for parsing...');
+      
+      // Send to AI for parsing with timeout
+      const aiParsedData = await Promise.race([
+        importTripFromFile(fileContent),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('AI processing timed out. Please try again with a shorter itinerary.')), 60000)
+        )
+      ]);
+      
+      console.log('🧠 AI parsing completed, converting to trip format...');
+      
+      // Validate AI response structure
+      if (!aiParsedData || typeof aiParsedData !== 'object') {
+        throw new Error('AI returned invalid data structure. Please try again.');
+      }
+      
+      if (!aiParsedData.tripName || !aiParsedData.startDate || !aiParsedData.endDate) {
+        throw new Error('AI could not extract essential trip information. Please ensure your itinerary includes trip name, start date, and end date.');
+      }
+      
+      // Convert AI response to our Trip format
+      const trip = createTripFromAIParsed(aiParsedData, userAccount.id, appUser.clerkId);
+      console.log('🎢 Trip object created:', {
+        id: trip.id,
+        name: trip.name,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        daysCount: trip.days.length
+      });
+      
+      // Save the trip
+      console.log('💾 Saving trip...');
+      await storageService.saveTrip(trip);
+      onTripCreate(trip);
+      loadTrips();
+      
+      console.log('✅ Import completed successfully');
+      alert(`Trip "${trip.name}" imported successfully! 🎉\n\nImported ${trip.days.length} days with activities.`);
+      
+    } catch (error) {
+      console.error('🚨 AI import failed:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to import trip: ';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('JSON')) {
+          errorMessage += 'The AI response was malformed. This might be a temporary issue - please try again.';
+        } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
+          errorMessage += 'The import process timed out. Please try with a shorter itinerary or check your internet connection.';
+        } else if (error.message.includes('empty')) {
+          errorMessage += 'The file appears to be empty or unreadable. Please check your file format and content.';
+        } else if (error.message.includes('too large')) {
+          errorMessage += 'The file is too large for processing. Please upload a smaller file.';
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
+          errorMessage += 'Network connection issue. Please check your internet connection and try again.';
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += 'An unknown error occurred. Please try again.';
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setAiImportLoading(false);
+    }
+  };
+
+  const readFileContent = async (file: File): Promise<string> => {
+    console.log('📁 Reading file:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: new Date(file.lastModified).toISOString()
+    });
+
+    // Handle Word documents with mammoth
+    if (file.name.endsWith('.docx')) {
+      try {
+        console.log('📄 Processing Word document with mammoth...');
+        const mammoth = await import('mammoth');
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        
+        console.log('✅ Word document processed successfully');
+        console.log('📝 Extracted text preview:', result.value.substring(0, 200) + '...');
+        
+        if (result.messages.length > 0) {
+          console.warn('⚠️ Mammoth warnings:', result.messages);
+        }
+        
+        return result.value;
+      } catch (error) {
+        console.error('❌ Failed to process Word document:', error);
+        throw new Error(`Failed to extract text from Word document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    // Handle .doc files (older format) - mammoth doesn't support these well
+    if (file.name.endsWith('.doc')) {
+      throw new Error('.doc files (older Word format) are not supported. Please save your document as .docx or .txt format.');
+    }
+    
+    // Handle PDF files - not supported in browser environment
+    if (file.name.endsWith('.pdf')) {
+      throw new Error('PDF files are not currently supported. Please convert your PDF to a .txt or .docx file, or copy the text content into a text document.');
+    }
+    
+    // Handle plain text files
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        
+        console.log('📝 Text file content preview:', content.substring(0, 200) + '...');
+        
+        // Check if this looks like binary data (shouldn't happen with .txt files)
+        const binaryIndicators = ['\x00', '\x01', '\x02', '\x03', '\x04', '\x05'];
+        const hasBinaryData = binaryIndicators.some(indicator => content.includes(indicator));
+        
+        if (hasBinaryData) {
+          reject(new Error('File contains binary data and cannot be processed as text. Please ensure you are uploading a valid text file.'));
+          return;
+        }
+        
+        resolve(content);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file, 'UTF-8');
+    });
+  };
+
   const canCreateTrips = (): boolean => {
     return !!(appUser && userAccount);
   };
@@ -211,7 +386,7 @@ const TripManager: React.FC<TripManagerProps> = ({
               <span className="text-blue-600">Local storage (Cloud storage available in production)</span>
             </>
           )}
-          {isLoading && (
+          {(isLoading || aiImportLoading) && (
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-disney-blue"></div>
           )}
         </div>
@@ -239,6 +414,16 @@ const TripManager: React.FC<TripManagerProps> = ({
           <Plus size={16} />
           <span>New Trip</span>
         </button>
+
+        <button
+          onClick={() => setShowProfileManager(true)}
+          disabled={!userAccount}
+          className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-disney-pink text-white rounded-lg hover:bg-pink-600 transition-colors text-sm font-medium min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+          title={!userAccount ? 'You must be assigned to an account to manage profiles' : 'Manage family member profiles'}
+        >
+          <Users size={16} />
+          <span>Manage Profiles</span>
+        </button>
         
         <button
           onClick={() => setShowTripList(true)}
@@ -261,7 +446,7 @@ const TripManager: React.FC<TripManagerProps> = ({
 
         <label className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-disney-orange text-white rounded-lg hover:bg-orange-600 transition-colors cursor-pointer text-sm font-medium min-h-[44px]">
           <Upload size={16} />
-          <span>Import</span>
+          <span>Import JSON</span>
           <input
             type="file"
             accept=".json"
@@ -269,7 +454,60 @@ const TripManager: React.FC<TripManagerProps> = ({
             className="hidden"
           />
         </label>
+
+        <label className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-disney-purple to-disney-pink text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all cursor-pointer text-sm font-medium min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" title="Upload .txt or .docx files with your itinerary for AI conversion">
+          <Sparkles size={16} />
+          <span>{aiImportLoading ? 'Processing...' : 'AI Import'}</span>
+          <input
+            type="file"
+            accept=".txt,.docx"
+            onChange={handleAIImport}
+            className="hidden"
+            disabled={aiImportLoading || !canCreateTrips()}
+            title="Upload .txt or .docx files with your itinerary for AI conversion"
+          />
+        </label>
       </div>
+
+      {/* AI Import Instructions */}
+      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start space-x-3">
+          <Sparkles size={20} className="text-disney-purple mt-0.5" />
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">AI Import - Supported Formats</h4>
+            <div className="text-sm text-gray-700 mb-3">
+              <p className="mb-2">Upload your itinerary in any of these formats:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span><strong>.txt files</strong> - Plain text documents</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span><strong>.docx files</strong> - Modern Word documents</span>
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+              <strong>Note:</strong> .doc (older Word format) and .pdf files are not currently supported. 
+              For PDF files, please copy the text content into a .txt file or Word document.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading indicator for AI Import */}
+      {aiImportLoading && (
+        <div className="mt-4 p-4 bg-gradient-to-r from-disney-purple to-disney-pink bg-opacity-10 rounded-lg border border-disney-purple border-opacity-20">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-disney-purple"></div>
+            <div>
+              <p className="text-disney-purple font-medium">AI Processing Your Itinerary...</p>
+              <p className="text-sm text-gray-600">This may take a moment while we analyze your trip details.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Current Trip Display */}
       {currentTrip && (
@@ -591,6 +829,41 @@ const TripManager: React.FC<TripManagerProps> = ({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Manager Modal */}
+      {showProfileManager && userAccount && appUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Manage Family Profiles</h2>
+              <button
+                onClick={() => setShowProfileManager(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <span className="text-2xl">×</span>
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6">
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">Account-Level Profile Management</h3>
+                <p className="text-sm text-gray-700">
+                  Manage your family member profiles here. These profiles can be reused across multiple trips.
+                  When you create a trip, you can assign specific family members to that trip.
+                </p>
+              </div>
+              
+              <ProfileManager
+                accountId={userAccount.id}
+                userId={appUser.clerkId}
+                onProfilesChange={() => {
+                  // Optional: Could refresh trip data if needed
+                }}
+              />
             </div>
           </div>
         </div>

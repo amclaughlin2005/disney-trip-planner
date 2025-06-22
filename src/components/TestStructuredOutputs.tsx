@@ -14,6 +14,7 @@ const TestStructuredOutputs: React.FC = () => {
     name: 'Test Disney Trip',
     startDate: '2024-07-01',
     endDate: '2024-07-03',
+    assignedProfileIds: [], // Initialize with empty assigned profiles for testing
     days: [
       {
         id: 'day-1',

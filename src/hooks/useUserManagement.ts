@@ -266,6 +266,7 @@ export const useUserManagement = () => {
       name: accountName,
       ownerId: accountUser.clerkId,
       subscriptionStatus: 'trial',
+      profiles: [], // Initialize empty profiles array
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

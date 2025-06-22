@@ -217,29 +217,133 @@ const schemas = {
       schema: {
         type: "object",
         properties: {
-          title: { type: "string" },
           overview: { type: "string" },
           highlights: {
-            type: "array",
-            items: { type: "string" }
-          },
-          preparationTips: {
             type: "array",
             items: { type: "string" }
           },
           budgetEstimate: {
             type: "object",
             properties: {
-              lowEnd: { type: "integer" },
-              highEnd: { type: "integer" },
-              notes: { type: "string" }
+              estimatedCost: { type: "integer", minimum: 100, maximum: 50000 },
+              costBreakdown: {
+                type: "array",
+                items: { type: "string" }
+              }
             },
-            required: ["lowEnd", "highEnd", "notes"],
+            required: ["estimatedCost", "costBreakdown"],
             additionalProperties: false
           },
-          encouragingMessage: { type: "string" }
+          preparationTips: {
+            type: "array",
+            items: { type: "string" }
+          },
+          encouragement: { type: "string" }
         },
-        required: ["title", "overview", "highlights", "preparationTips", "budgetEstimate", "encouragingMessage"],
+        required: ["overview", "highlights", "budgetEstimate", "preparationTips", "encouragement"],
+        additionalProperties: false
+      }
+    }
+  },
+
+  tripImport: {
+    type: "json_schema",
+    json_schema: {
+      name: "trip_import",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          tripName: { type: "string" },
+          startDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+          endDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+          resortName: { type: "string" },
+          days: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+                parkName: { type: "string" },
+                transportation: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      type: { type: "string", enum: ["bus", "monorail", "boat", "walking", "uber", "lyft", "rental", "other"] },
+                      from: { type: "string" },
+                      to: { type: "string" },
+                      departureTime: { type: "string" },
+                      arrivalTime: { type: "string" },
+                      notes: { type: "string" }
+                    },
+                    required: ["type", "from", "to", "departureTime", "arrivalTime", "notes"],
+                    additionalProperties: false
+                  }
+                },
+                rides: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      park: { type: "string" },
+                      type: { type: "string", enum: ["attraction", "show", "character-meet", "parade", "fireworks"] },
+                      priority: { type: "string", enum: ["must-do", "want-to-do", "if-time", "skip"] },
+                      timeSlot: { type: "string" },
+                      duration: { type: "integer", minimum: 5, maximum: 240 },
+                      fastPass: { type: "boolean" },
+                      geniePlus: { type: "boolean" },
+                      notes: { type: "string" }
+                    },
+                    required: ["name", "park", "type", "priority", "timeSlot", "duration", "fastPass", "geniePlus", "notes"],
+                    additionalProperties: false
+                  }
+                },
+                reservations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      type: { type: "string", enum: ["dining", "hotel", "spa", "tour", "other"] },
+                      location: { type: "string" },
+                      date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+                      time: { type: "string" },
+                      partySize: { type: "integer", minimum: 1, maximum: 20 },
+                      confirmationNumber: { type: "string" },
+                      notes: { type: "string" }
+                    },
+                    required: ["name", "type", "location", "date", "time", "partySize", "confirmationNumber", "notes"],
+                    additionalProperties: false
+                  }
+                },
+                food: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      type: { type: "string", enum: ["quick-service", "table-service", "character-dining", "snack", "drink", "dessert"] },
+                      location: { type: "string" },
+                      mealType: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack"] },
+                      timeSlot: { type: "string" },
+                      partySize: { type: "integer", minimum: 1, maximum: 20 },
+                      budget: { type: "integer", minimum: 5, maximum: 500 },
+                      reservationNumber: { type: "string" },
+                      notes: { type: "string" }
+                    },
+                    required: ["name", "type", "location", "mealType", "timeSlot", "partySize", "budget", "reservationNumber", "notes"],
+                    additionalProperties: false
+                  }
+                }
+              },
+              required: ["date", "parkName", "transportation", "rides", "reservations", "food"],
+              additionalProperties: false
+            }
+          }
+        },
+        required: ["tripName", "startDate", "endDate", "resortName", "days"],
         additionalProperties: false
       }
     }
@@ -247,38 +351,48 @@ const schemas = {
 };
 
 module.exports = async function handler(req, res) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // Handle CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
-  // Check if OpenAI API key is configured
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ 
-      error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your environment variables.' 
-    });
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   try {
-    const { action, data } = req.body;
+    const data = req.body;
+    console.log('🤖 OpenAI API request:', { type: data.type, hasData: !!data });
 
-    switch (action) {
-      case 'generateItinerarySuggestions':
-        return await handleItinerarySuggestions(req, res, data);
-      case 'optimizeDayPlan':
-        return await handleDayOptimization(req, res, data);
-      case 'suggestDining':
-        return await handleDiningSuggestions(req, res, data);
-      case 'suggestRides':
-        return await handleRideSuggestions(req, res, data);
-      case 'generateTripSummary':
-        return await handleTripSummary(req, res, data);
+    switch (data.type) {
+      case 'itinerary':
+        return handleItinerarySuggestions(req, res, data);
+      case 'optimization':
+        return handleDayOptimization(req, res, data);
+      case 'dining':
+        return handleDiningSuggestions(req, res, data);
+      case 'rides':
+        return handleRideSuggestions(req, res, data);
+      case 'summary':
+        return handleTripSummary(req, res, data);
+      case 'import':
+        return handleTripImport(req, res, data);
       default:
-        return res.status(400).json({ error: 'Invalid action' });
+        res.status(400).json({ error: 'Invalid request type' });
     }
   } catch (error) {
-    console.error('OpenAI API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('🚨 OpenAI API Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process request',
+      details: error.message,
+      fallback: 'AI services are temporarily unavailable. Please try again later.'
+    });
   }
 }
 
@@ -609,5 +723,232 @@ Create an encouraging summary with highlights, preparation tips, budget estimate
     return res.status(500).json({ 
       error: 'Failed to generate trip summary: ' + error.message 
     });
+  }
+}
+
+async function handleTripImport(req, res, data) {
+  console.log('🎢 Processing trip import request...');
+  
+  if (!data.fileContent) {
+    return res.status(400).json({ error: 'File content is required' });
+  }
+
+  // Preprocess the file content to handle encoding issues
+  let processedContent = data.fileContent;
+  
+  // Normalize line endings (convert \r\n and \r to \n)
+  processedContent = processedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
+  // Remove or replace problematic Unicode characters
+  processedContent = processedContent.replace(/[^\x00-\x7F]/g, (char) => {
+    // Replace common problematic characters with safe alternatives
+    const replacements = {
+      '\uFFFD': '\'', // Replace replacement character with apostrophe
+      '\u2018': '\'', // Replace left single quotation mark
+      '\u2019': '\'', // Replace right single quotation mark
+      '\u201C': '"', // Replace left double quotation mark
+      '\u201D': '"', // Replace right double quotation mark
+      '\u2013': '-', // Replace en dash
+      '\u2014': '-', // Replace em dash
+    };
+    return replacements[char] || ''; // Remove if no replacement found
+  });
+  
+  // Trim excessive whitespace
+  processedContent = processedContent.replace(/\n\s*\n\s*\n/g, '\n\n'); // Replace multiple blank lines with double newline
+  processedContent = processedContent.trim();
+  
+  // Log the actual file content being sent to AI for debugging
+  console.log('📄 Original file content preview:', {
+    length: data.fileContent.length,
+    preview: data.fileContent.substring(0, 300) + '...',
+    hasCarriageReturns: data.fileContent.includes('\r'),
+    hasSpecialChars: /[^\x00-\x7F]/.test(data.fileContent)
+  });
+  
+  console.log('📄 Processed file content preview:', {
+    length: processedContent.length,
+    preview: processedContent.substring(0, 300) + '...',
+    containsBinaryData: ['\x00', '\x01', '\x02', '\x03', '\x04', '\x05'].some(indicator => 
+      processedContent.includes(indicator)
+    )
+  });
+
+  try {
+    // Retrieve custom prompt or use default
+    const customPrompt = await getCustomPrompt('import');
+    console.log('📝 Using custom prompt for import:', !!customPrompt);
+
+    const systemMessage = customPrompt?.systemMessage || `You are a Disney World trip planning expert that converts user itineraries into structured trip data.
+
+Your task is to analyze the provided itinerary text and convert it into a structured JSON format matching our Disney Trip Planner schema.
+
+IMPORTANT GUIDELINES:
+- Extract trip name, dates, resort information, and daily activities
+- Identify Disney parks from text (Magic Kingdom, EPCOT, Hollywood Studios, Animal Kingdom, Disney Springs, etc.)
+- Parse transportation between locations
+- Identify rides, shows, attractions with appropriate categories
+- Extract dining reservations and food plans
+- Determine appropriate priority levels (must-do, want-to-do, if-time)
+- Set reasonable duration estimates for activities
+- Preserve any confirmation numbers, times, and special notes
+- If information is unclear or missing, make reasonable Disney-appropriate assumptions
+- Use YYYY-MM-DD format for all dates
+- Ensure all required fields are populated with sensible defaults when needed
+
+Return a complete structured trip object that can be directly imported into our system.`;
+
+    const userPrompt = customPrompt?.userPromptTemplate || `Please convert this itinerary into our structured Disney trip format:
+
+{{fileContent}}
+
+Instructions:
+- Parse all dates, locations, and activities
+- Match activities to appropriate Disney categories
+- Set realistic time estimates and priorities
+- Include all transportation and dining information
+- Fill in any missing required fields with reasonable defaults`;
+
+    // Replace template variables with processed content
+    const finalUserPrompt = userPrompt.replace('{{fileContent}}', processedContent);
+
+    console.log('🎯 Sending request to OpenAI with structured output...');
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Using gpt-4o-mini instead of o3-mini for better reliability
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: finalUserPrompt }
+      ],
+      response_format: schemas.tripImport,
+      max_tokens: 4000
+    });
+
+    console.log('📦 OpenAI Response:', {
+      hasChoices: !!completion.choices,
+      choicesLength: completion.choices?.length,
+      hasContent: !!completion.choices?.[0]?.message?.content,
+      contentLength: completion.choices?.[0]?.message?.content?.length,
+      contentPreview: completion.choices?.[0]?.message?.content?.substring(0, 200) + '...'
+    });
+
+    const rawContent = completion.choices[0]?.message?.content;
+    if (!rawContent || rawContent.trim() === '' || rawContent === '{}' || rawContent === 'null') {
+      console.error('❌ Empty or invalid response from OpenAI, triggering fallback...');
+      
+      // Immediately trigger fallback instead of returning error
+      try {
+        const fallbackCompletion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { 
+              role: "system", 
+              content: `You are a Disney World trip planning expert. Convert the user's itinerary into a valid JSON object that matches this exact structure:
+
+{
+  "tripName": "string",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD", 
+  "resortName": "string",
+  "days": [
+    {
+      "date": "YYYY-MM-DD",
+      "parkName": "string",
+      "transportation": [],
+      "rides": [
+        {
+          "name": "string",
+          "park": "string", 
+          "type": "attraction",
+          "priority": "must-do",
+          "timeSlot": "time",
+          "duration": 30,
+          "fastPass": false,
+          "geniePlus": false,
+          "notes": "string"
+        }
+      ],
+      "reservations": [],
+      "food": []
+    }
+  ]
+}
+
+Respond ONLY with valid JSON. No explanations or additional text.` 
+            },
+            { role: "user", content: `Convert this itinerary to JSON:\n\n${processedContent}` }
+          ],
+          max_tokens: 3000,
+          temperature: 0.1
+        });
+
+        const fallbackContent = fallbackCompletion.choices[0]?.message?.content;
+        if (!fallbackContent || fallbackContent.trim() === '') {
+          console.error('❌ Fallback also returned empty response');
+          return res.status(500).json({ 
+            error: 'Failed to process trip import',
+            details: 'Both primary and fallback AI processing returned empty responses. This may be due to content filtering or processing limitations.'
+          });
+        }
+
+        console.log('🔄 Using fallback response');
+        const result = JSON.parse(fallbackContent);
+        console.log('✅ Fallback JSON parsing successful');
+        
+        return res.json({
+          success: true,
+          data: result,
+          customPromptUsed: !!customPrompt,
+          usedFallback: true,
+          usage: fallbackCompletion.usage
+        });
+        
+      } catch (fallbackError) {
+        console.error('❌ Fallback processing failed:', fallbackError);
+        return res.status(500).json({ 
+          error: 'Failed to process trip import',
+          details: `Primary processing returned empty response and fallback failed: ${fallbackError.message}`
+        });
+      }
+    }
+
+    let result;
+    try {
+      result = JSON.parse(rawContent);
+      console.log('✅ JSON parsing successful');
+        } catch (parseError) {
+      console.error('❌ JSON parse error:', parseError.message);
+      console.error('Raw content that failed to parse:', rawContent);
+      return res.status(500).json({ 
+        error: 'Failed to process trip import',
+        details: `JSON parsing failed: ${parseError.message}. Raw content: ${rawContent.substring(0, 500)}...`
+      });
+    }
+    
+    console.log('✅ Trip import successful');
+    res.json({
+      success: true,
+      data: result,
+      customPromptUsed: !!customPrompt,
+      usage: completion.usage
+    });
+
+  } catch (error) {
+    console.error('🚨 Trip import error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process trip import',
+      details: error.message
+    });
+  }
+}
+
+// Custom prompt retrieval function
+async function getCustomPrompt(category) {
+  try {
+    // For now, return null to use default prompts
+    // This can be enhanced later to integrate with the prompt management system
+    return null;
+  } catch (error) {
+    console.warn(`Failed to retrieve custom prompt for ${category}:`, error);
+    return null;
   }
 } 

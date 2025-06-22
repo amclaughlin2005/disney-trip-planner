@@ -2,7 +2,7 @@
 
 ## 🏰 Overview
 
-Disney Trip Planner is a comprehensive, AI-powered web application designed to help users plan magical Disney World vacations. Built with modern React TypeScript, it features enterprise-grade multi-user authentication, role-based access control, account management, cloud storage, AI-powered suggestions, and detailed trip management capabilities.
+Disney Trip Planner is a comprehensive, AI-powered web application designed to help users plan magical Disney World vacations. Built with modern React TypeScript, it features enterprise-grade multi-user authentication, role-based access control, account management, cloud storage, AI-powered suggestions, detailed trip management capabilities, and personalized profile management for all trip participants.
 
 ## 🔐 Authentication & User Management System
 
@@ -123,6 +123,64 @@ const AdminRoute = ({ children }) => {
 };
 ```
 
+## 👥 Account-Level Profile Management System
+
+### **Account-Based Participant Profiles**
+The Disney Trip Planner features a sophisticated account-level profile management system where family members are managed at the account level and can be assigned to specific trips. This enables better reusability and personalized recommendations across multiple Disney vacations.
+
+#### **Account Profile Architecture**
+**Account-Level Storage**: All family member profiles are stored at the account level, enabling reuse across multiple trips.
+
+**Trip Assignment System**: Users can assign specific profiles to individual trips, allowing different family members to participate in different vacations.
+
+Each AccountProfile includes:
+- **Account Association**: Profiles belong to an account and can be reused across trips
+- **Trip Assignment**: Profiles are assigned to specific trips via `assignedProfileIds` array
+- **Name** (Required): Full name of the family member
+- **Age** (Required): Age for age-appropriate recommendations and planning
+- **Gender** (Optional): Male, Female, Non-binary, or Prefer not to say
+- **Dietary Preferences** (Optional): Multiple selections from comprehensive list including:
+  - Vegetarian, Vegan, Gluten-Free, Dairy-Free
+  - Nut Allergy, Shellfish Allergy, Kosher, Halal
+  - Low Sodium, Diabetic Friendly, No Spicy Food, Picky Eater
+- **Ride Preferences** (Optional): Activity level preferences:
+  - Thrill Seeker: Loves roller coasters and intense rides
+  - Family Friendly: Prefers gentle rides suitable for all ages
+  - Mild Rides Only: Prefers calm, slow-moving attractions
+  - Mixed Preferences: Enjoys a variety of ride types
+- **Favorite Disney Characters** (Optional): Multiple selections from 50+ popular characters
+- **Favorite Rides** (Optional): Multiple selections from 40+ Disney World attractions
+- **What They Love About Disney** (Optional): Free-text field for personal Disney interests
+
+#### **Profile Management Features**
+- **Account-Level Management**: All profiles managed at the account level for reusability
+- **Dual Access Points**: 
+  - **"Manage Profiles" Button**: Always accessible in the trip manager for standalone profile management
+  - **"Profiles" Tab**: Available when viewing a specific trip for assignment interface
+- **Trip Assignment Interface**: Visual assignment system to select which family members join each trip
+- **Visual Profile Cards**: Age-appropriate emoji icons and color-coded information with assignment status
+- **Comprehensive Form**: Modal-based creation and editing with extensive validation
+- **Smart Display**: Condensed information showing key preferences and favorites
+- **Easy Editing**: Hover-activated edit and delete buttons with confirmation dialogs
+- **Bulk Selection**: Checkbox interfaces for multiple preferences and character selections
+- **Assignment Indicators**: Clear visual indicators showing which profiles are assigned to the current trip
+
+#### **Integration with Trip Planning**
+- **Cross-Trip Reusability**: Family members can be assigned to multiple trips without data duplication
+- **AI Personalization**: Assigned profile data enhances AI recommendations for specific trips
+- **Dining Suggestions**: Dietary preferences of assigned participants inform restaurant recommendations
+- **Ride Planning**: Age and thrill preferences of trip participants guide attraction suggestions
+- **Character Meet Planning**: Favorite character data from assigned profiles helps plan character interactions
+- **Group Dynamics**: Assigned profiles enable personalized family-friendly planning per trip
+
+#### **Profile Persistence and Storage**
+- **Account-Based Storage**: Profiles stored at account level with automatic sync to assigned trips
+- **Cloud Storage**: Account profiles sync across devices when cloud storage is enabled
+- **Local Storage**: Offline profile management with automatic saving and assignment tracking
+- **Assignment Persistence**: Trip assignments are maintained independently of profile data
+- **Automatic Cleanup**: Deleting a profile removes it from all assigned trips automatically
+- **Data Migration**: Existing trips migrated to use `assignedProfileIds` reference system
+
 ## 📁 File Structure Deep Dive
 
 ### **Core Application (`src/`)**
@@ -197,6 +255,31 @@ const AdminRoute = ({ children }) => {
   - **AI Prompts**: Comprehensive AI prompt management system
 - **Security**: Cannot impersonate other super admins, audit logging
 
+#### **Profile Management**
+
+##### **`ProfileManager.tsx`** - Participant Profile Management
+- **Purpose**: Comprehensive management of trip participant profiles with detailed personalization options
+- **Key Features**:
+  - **Profile Creation**: Modal-based form with required fields (name, age) and extensive optional fields
+  - **Profile Display**: Visual grid layout with age-appropriate emoji icons and color-coded information
+  - **Smart Editing**: Hover-activated edit and delete buttons with confirmation dialogs
+  - **Comprehensive Forms**: Multi-section form with checkboxes for bulk selection of preferences
+  - **Data Validation**: Form validation ensuring required fields and reasonable age ranges (0-120)
+  - **Responsive Design**: Adaptive layout for mobile, tablet, and desktop viewing
+- **Profile Categories**:
+  - Basic Information: Name, age, gender with inclusive options
+  - Dietary Needs: 13 dietary preference options with multiple selection capability
+  - Activity Preferences: Ride intensity preferences with detailed descriptions
+  - Disney Favorites: 50+ character options and 40+ ride selections
+  - Personal Notes: Free-text field for individual Disney interests and motivations
+- **Visual Elements**:
+  - Age-appropriate emoji icons (👶🧒👦👤👴) based on age ranges
+  - Color-coded preference badges (thrill-seeker: red, family-friendly: green, etc.)
+  - Condensed information display showing key details without overwhelming
+  - Empty state with encouraging call-to-action for first profile addition
+- **Integration**: Seamlessly integrates with trip storage, AI recommendations, and account management
+- **Accessibility**: Full keyboard navigation, screen reader support, and ARIA labels
+
 #### **Trip Management Core**
 
 ##### **`TripManager.tsx`** - Trip CRUD Operations
@@ -204,6 +287,7 @@ const AdminRoute = ({ children }) => {
 - **Key Features**:
   - **Trip Tiles Display**: Automatic display of saved trips as interactive tiles on the main page
   - **Enhanced User Experience**: Users can see all their trips immediately without clicking "Load Trip"
+  - **Profile Management Access**: Dedicated "Manage Profiles" button for account-level family profile management
   - Account-scoped trip loading and filtering
   - Trip creation with form validation and account assignment
   - Import/export functionality (JSON format)
@@ -341,6 +425,7 @@ const AdminRoute = ({ children }) => {
   - **Dining Recommendations**: Suggests restaurants based on preferences, budget, and dietary needs
   - **Ride Suggestions**: Recommends attractions based on thrill level, age, and interests
   - **Trip Summary**: Generates encouraging overview of planned vacation with tips
+  - **AI Trip Import**: Revolutionary feature that converts uploaded itineraries into structured trip plans
 - **Customization Options**:
   - Group size and age considerations
   - Budget constraints (low/medium/high)
@@ -349,6 +434,36 @@ const AdminRoute = ({ children }) => {
   - Dietary restrictions and allergies
 - **Integration**: Secure API calls to OpenAI via server-side proxy using o3-mini model
 - **Security**: API key protection, rate limiting, content filtering
+
+##### **AI Trip Import System** - Automated Itinerary Conversion
+- **Purpose**: Converts user-uploaded itinerary files into structured Disney trip plans using OpenAI
+- **Supported Formats**: Text files (.txt), Word documents (.docx) - uses mammoth.js for text extraction
+- **File Size Limit**: 10MB maximum for optimal processing
+- **AI Processing Features**:
+  - **Intelligent Parsing**: Extracts trip names, dates, resort information, and daily activities
+  - **Disney Park Recognition**: Identifies Magic Kingdom, EPCOT, Hollywood Studios, Animal Kingdom, Disney Springs
+  - **Activity Classification**: Categorizes rides, shows, dining, transportation with appropriate types
+  - **Smart Defaults**: Fills missing information with Disney-appropriate assumptions
+  - **Priority Assignment**: Assigns realistic priority levels (must-do, want-to-do, if-time)
+  - **Duration Estimation**: Sets reasonable time estimates for all activities
+  - **Structured Output**: Returns complete JSON matching our trip schema
+- **Technical Implementation**:
+  - **Frontend Service**: File reading and AI communication via `openai.ts`
+  - **Backend Processing**: Dedicated API endpoint `/api/openai` with `import` type
+  - **Schema Validation**: Strict JSON schema ensures data integrity
+  - **Error Handling**: Comprehensive error handling with user-friendly messages
+  - **Progress Indication**: Real-time loading states and progress feedback
+- **User Experience**:
+  - **Drag & Drop**: Simple file upload with visual feedback
+  - **Processing Status**: Clear indication of AI processing with animated loader
+  - **Success Confirmation**: Immediate trip creation and selection after import
+  - **Error Recovery**: Graceful error handling with detailed error messages
+- **Data Conversion**:
+  - **Resort Matching**: Intelligent matching of resort names to Disney properties
+  - **Park Assignment**: Automatic park selection based on mentioned attractions
+  - **Color Coding**: Applies consistent color schemes for all activity categories
+  - **ID Generation**: Creates unique identifiers for all trip components
+  - **Account Integration**: Properly assigns imported trips to user accounts
 
 ##### **AI Prompt Management System** - Custom AI Behavior Control
 - **Purpose**: Comprehensive system for customizing AI responses through the admin panel
@@ -491,17 +606,23 @@ const AdminRoute = ({ children }) => {
 #### **`index.ts`** - Type Definitions
 - **Purpose**: Comprehensive TypeScript type definitions for the entire application
 - **Key Types**:
-  - `UserAccount`: Account entity with billing and ownership information
+  - `UserAccount`: Account entity with billing, ownership, and embedded profiles array
+  - `AccountProfile`: Account-level profile data structure for family members
   - `AppUser`: Application user with roles and permissions
   - `AccountUser`: User-account relationship with role assignments
-  - `Trip`: Enhanced trip entity with account association and permissions
+  - `Trip`: Enhanced trip entity with `assignedProfileIds` reference array
   - `TripDay`: Day planning with activities and scheduling
   - `Permission`: Role-based permission system
+- **Profile Architecture Types**:
+  - `AccountProfile`: Comprehensive family member data with account association
+  - Profile reference system using ID arrays instead of embedded objects
+  - Trip assignment tracking via `assignedProfileIds`
 - **Enhanced Features**:
+  - Account-scoped profile management
+  - Trip assignment system types
   - Invitation tracking with status management
   - Impersonation context types
-  - Account-scoped data relationships
-  - Permission validation types
+  - Cross-trip profile reusability support
 
 ## 🔧 Performance Optimizations
 
@@ -665,6 +786,56 @@ const AdminRoute = ({ children }) => {
 - **Route Switching**: < 100ms between main app and admin panel
 - **Data Sync**: Real-time updates across all components
 - **Mobile Performance**: Optimized for devices with limited resources
+
+## 🔧 **Troubleshooting**
+
+### **AI Trip Import Issues**
+
+The AI Trip Import feature has been enhanced with robust error handling and fallback mechanisms. If you encounter issues:
+
+#### **"Failed to process trip import" - Empty Response**
+- **Cause**: OpenAI returned an empty response, possibly due to content filtering or processing limitations
+- **Solution**: The system now automatically falls back to a secondary processing method
+- **What to check**: 
+  - Ensure your file contains readable text content
+  - Check for unusual characters or formatting issues
+  - Try breaking very long itineraries into smaller files
+
+#### **"JSON parsing failed" Error**
+- **Cause**: AI response was malformed or incomplete
+- **Solution**: The system now preprocesses your content to handle encoding issues
+- **What it fixes automatically**:
+  - Converts carriage returns (`\r`) to standard newlines
+  - Replaces problematic Unicode characters (smart quotes, special dashes)
+  - Removes binary data indicators
+  - Normalizes excessive whitespace
+
+#### **File Format Support**
+- **✅ Supported**: `.txt` (plain text), `.docx` (Word documents)
+- **❌ Not supported**: `.doc` (older Word format), `.pdf` files (due to browser compatibility constraints)
+- **Recommendations**:
+  - Save Word documents as `.docx` format
+  - Convert PDFs to text before uploading
+  - Use UTF-8 encoding for text files
+
+#### **Content Guidelines**
+For best results, ensure your itinerary includes:
+- **Trip name** (clear title)
+- **Dates** (start and end dates in MM/DD/YYYY or similar format)
+- **Resort information** (if staying on property)
+- **Daily activities** organized by day
+- **Park names** (Magic Kingdom, EPCOT, Hollywood Studios, Animal Kingdom)
+
+#### **Size Limits**
+- **File upload**: 10MB maximum
+- **Content processing**: 100KB maximum (after text extraction)
+- **Recommendation**: Break large itineraries into multiple smaller files
+
+#### **Browser Console Debugging**
+If issues persist, check browser console (F12 → Console) for detailed logs:
+- Look for emoji-prefixed messages (🎯, 📁, 📤, etc.)
+- Note any specific error messages
+- Check network requests for failed API calls
 
 ---
 

@@ -28,7 +28,7 @@ interface AIPrompt {
   description: string;
   systemMessage: string;
   userPromptTemplate: string;
-  category: 'itinerary' | 'optimization' | 'dining' | 'rides' | 'summary';
+  category: 'itinerary' | 'optimization' | 'dining' | 'rides' | 'summary' | 'import';
   maxTokens: number;
   lastModified: string;
 }
@@ -195,6 +195,42 @@ Create an encouraging summary highlighting what makes this trip special and any 
       category: 'summary',
       maxTokens: 300,
       lastModified: new Date().toISOString()
+    },
+    {
+      id: 'trip-import',
+      name: 'AI Trip Import',
+      description: 'Converts uploaded itinerary files into structured Disney trip plans using intelligent parsing',
+      systemMessage: `You are a Disney World trip planning expert that converts user itineraries into structured trip data.
+
+Your task is to analyze the provided itinerary text and convert it into a structured JSON format matching our Disney Trip Planner schema.
+
+IMPORTANT GUIDELINES:
+- Extract trip name, dates, resort information, and daily activities
+- Identify Disney parks from text (Magic Kingdom, EPCOT, Hollywood Studios, Animal Kingdom, Disney Springs, etc.)
+- Parse transportation between locations
+- Identify rides, shows, attractions with appropriate categories
+- Extract dining reservations and food plans  
+- Determine appropriate priority levels (must-do, want-to-do, if-time)
+- Set reasonable duration estimates for activities
+- Preserve any confirmation numbers, times, and special notes
+- If information is unclear or missing, make reasonable Disney-appropriate assumptions
+- Use YYYY-MM-DD format for all dates
+- Ensure all required fields are populated with sensible defaults when needed
+
+Return a complete structured trip object that can be directly imported into our system.`,
+      userPromptTemplate: `Please convert this itinerary into our structured Disney trip format:
+
+{{fileContent}}
+
+Instructions:
+- Parse all dates, locations, and activities
+- Match activities to appropriate Disney categories
+- Set realistic time estimates and priorities
+- Include all transportation and dining information
+- Fill in any missing required fields with reasonable defaults`,
+      category: 'import',
+      maxTokens: 4000,
+      lastModified: new Date().toISOString()
     }
   ];
 
@@ -259,6 +295,7 @@ Create an encouraging summary highlighting what makes this trip special and any 
         name: accountName,
         ownerId: user?.id || '',
         subscriptionStatus: 'trial',
+        profiles: [], // Initialize with empty profiles array
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -554,6 +591,7 @@ Create an encouraging summary highlighting what makes this trip special and any 
       case 'dining': return 'bg-orange-100 text-orange-800';
       case 'rides': return 'bg-purple-100 text-purple-800';
       case 'summary': return 'bg-pink-100 text-pink-800';
+      case 'import': return 'bg-teal-100 text-teal-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -1379,6 +1417,7 @@ Create an encouraging summary highlighting what makes this trip special and any 
                     <option value="dining">Dining</option>
                     <option value="rides">Rides</option>
                     <option value="summary">Summary</option>
+                    <option value="import">Import</option>
                   </select>
                 </div>
 

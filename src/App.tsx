@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Crown, Calendar, Plus, List, Grid, Bot, Shield, Sparkles } from 'lucide-react';
+import { Crown, Calendar, Plus, List, Grid, Bot, Shield, Sparkles, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import AuthWrapper from './components/AuthWrapper';
 import TripManager from './components/TripManager';
@@ -9,12 +9,14 @@ import TripDayCard from './components/TripDayCard';
 import AddDayModal from './components/AddDayModal';
 import AgendaView from './components/AgendaView';
 import AIAssistant from './components/AIAssistant';
+import ProfileManager from './components/ProfileManager';
 import { AdminPanel } from './components/AdminPanel';
 import AccountSetup from './components/AccountSetup';
 import WelcomeNewUser from './components/WelcomeNewUser';
 import { useUserManagement } from './hooks/useUserManagement';
 import { storageService } from './utils/cloudStorage';
-import { Trip, TripDay, Park } from './types';
+import { Trip, TripDay, Park, AccountProfile } from './types';
+import { getTripAssignedProfiles } from './utils/tripStorage';
 import './index.css';
 
 // Main App Component (Trip Planning Interface)
@@ -32,9 +34,10 @@ const MainApp: React.FC = () => {
 
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
+  const [assignedProfilesCount, setAssignedProfilesCount] = useState(0);
   const [showAddDayModal, setShowAddDayModal] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
-  const [viewMode, setViewMode] = useState<'detailed' | 'agenda'>('detailed');
+  const [viewMode, setViewMode] = useState<'detailed' | 'agenda' | 'profiles'>('detailed');
   const navigate = useNavigate();
 
   // Debug logging
@@ -46,14 +49,21 @@ const MainApp: React.FC = () => {
     }
   }, [appUser]);
 
-  // Update trip days when current trip changes
+  // Update trip days and assigned profiles when current trip changes
   useEffect(() => {
     if (currentTrip) {
       setTripDays(currentTrip.days);
+      
+      // Get assigned profiles count
+      if (userAccount) {
+        const assignedProfiles = getTripAssignedProfiles(currentTrip.id, appUser?.clerkId || '', userAccount.id);
+        setAssignedProfilesCount(assignedProfiles.length);
+      }
     } else {
       setTripDays([]);
+      setAssignedProfilesCount(0);
     }
-  }, [currentTrip]);
+  }, [currentTrip, userAccount, appUser]);
 
   // Show loading state while user data is being initialized
   if (loading) {
@@ -255,6 +265,22 @@ const MainApp: React.FC = () => {
     }
   };
 
+  // Profile Management Handlers
+  const handleProfilesChange = () => {
+    // Refresh current trip from storage to pick up profile assignment changes
+    if (currentTrip && userAccount) {
+      storageService.getTrip(currentTrip.id).then(updatedTrip => {
+        if (updatedTrip) {
+          setCurrentTrip(updatedTrip);
+        }
+      }).catch(console.error);
+      
+      // Update assigned profiles count
+      const assignedProfiles = getTripAssignedProfiles(currentTrip.id, appUser?.clerkId || '', userAccount.id);
+      setAssignedProfilesCount(assignedProfiles.length);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       {/* Impersonation Banner */}
@@ -353,15 +379,30 @@ const MainApp: React.FC = () => {
                       <List size={14} />
                       <span>Agenda</span>
                     </button>
+                    <button
+                      onClick={() => setViewMode('profiles')}
+                      className={`flex items-center space-x-1 px-3 py-2 text-sm ${
+                        viewMode === 'profiles' 
+                          ? 'bg-disney-blue text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Users size={14} />
+                      <span>Profiles</span>
+                    </button>
                   </div>
                 </div>
               </div>
 
               {/* Trip Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-disney-blue">{tripDays.length}</div>
                   <div className="text-sm text-gray-600">Days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-disney-pink">{assignedProfilesCount}</div>
+                  <div className="text-sm text-gray-600">People</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-disney-green">
@@ -410,8 +451,17 @@ const MainApp: React.FC = () => {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : viewMode === 'agenda' ? (
               <AgendaView days={tripDays} />
+            ) : (
+              userAccount && (
+                <ProfileManager
+                  accountId={userAccount.id}
+                  userId={appUser?.clerkId || ''}
+                  trip={currentTrip}
+                  onProfilesChange={handleProfilesChange}
+                />
+              )
             )}
 
             {/* Modals */}

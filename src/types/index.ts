@@ -74,12 +74,28 @@ export interface CategoryColors {
   food: string;
 }
 
+export interface AccountProfile {
+  id: string;
+  name: string;
+  age: number;
+  gender?: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
+  dietaryPreferences?: string[];
+  ridePreferences?: 'thrill-seeker' | 'family-friendly' | 'mild' | 'mixed';
+  favoriteCharacters?: string[];
+  favoriteRides?: string[];
+  lovesAboutDisney?: string;
+  accountId: string; // Which account this profile belongs to
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Trip {
   id: string;
   name: string;
   startDate: string;
   endDate: string;
   resort: Resort | null;
+  assignedProfileIds: string[]; // References to AccountProfile IDs
   days: TripDay[];
   createdAt: string;
   updatedAt: string;
@@ -189,6 +205,7 @@ export interface UserAccount {
   ownerId: string; // Clerk user ID of account owner
   billingEmail?: string;
   subscriptionStatus?: 'active' | 'canceled' | 'trial';
+  profiles: AccountProfile[]; // All profiles for this account
   createdAt: string;
   updatedAt: string;
 }
@@ -258,4 +275,135 @@ export const PERMISSIONS = {
     READ: 'settings:read',
     UPDATE: 'settings:update'
   }
-} as const; 
+} as const;
+
+export const DIETARY_PREFERENCES = [
+  'Vegetarian',
+  'Vegan',
+  'Gluten-Free',
+  'Dairy-Free',
+  'Nut Allergy',
+  'Shellfish Allergy',
+  'Kosher',
+  'Halal',
+  'Low Sodium',
+  'Diabetic Friendly',
+  'No Spicy Food',
+  'Picky Eater',
+  'Other'
+];
+
+export const RIDE_PREFERENCES = [
+  { value: 'thrill-seeker', label: 'Thrill Seeker', description: 'Loves roller coasters and intense rides' },
+  { value: 'family-friendly', label: 'Family Friendly', description: 'Prefers gentle rides suitable for all ages' },
+  { value: 'mild', label: 'Mild Rides Only', description: 'Prefers calm, slow-moving attractions' },
+  { value: 'mixed', label: 'Mixed Preferences', description: 'Enjoys a variety of ride types' },
+];
+
+export const POPULAR_DISNEY_CHARACTERS = [
+  'Mickey Mouse',
+  'Minnie Mouse',
+  'Donald Duck',
+  'Goofy',
+  'Pluto',
+  'Elsa',
+  'Anna',
+  'Olaf',
+  'Moana',
+  'Maui',
+  'Belle',
+  'Beast',
+  'Ariel',
+  'Simba',
+  'Timon & Pumbaa',
+  'Buzz Lightyear',
+  'Woody',
+  'Lightning McQueen',
+  'Rapunzel',
+  'Flynn Rider',
+  'Princess Jasmine',
+  'Aladdin',
+  'Mulan',
+  'Pocahontas',
+  'Tiana',
+  'Prince Naveen',
+  'Merida',
+  'Baymax',
+  'Stitch',
+  'Winnie the Pooh',
+  'Tigger',
+  'Eeyore',
+  'Tinker Bell',
+  'Peter Pan',
+  'Captain Hook',
+  'Cinderella',
+  'Prince Charming',
+  'Snow White',
+  'The Seven Dwarfs',
+  'Alice',
+  'Mad Hatter',
+  'Cheshire Cat',
+  'Dumbo',
+  'Bambi',
+  'Thumper',
+  'Lady and the Tramp',
+  'Cruella de Vil',
+  'Maleficent',
+  'Ursula',
+  'Jafar',
+  'Scar',
+  'Gaston'
+];
+
+export const POPULAR_DISNEY_RIDES = [
+  // Magic Kingdom
+  'Space Mountain',
+  'Big Thunder Mountain Railroad',
+  'Splash Mountain',
+  'Pirates of the Caribbean',
+  'Haunted Mansion',
+  'It\'s a Small World',
+  'Jungle Cruise',
+  'Seven Dwarfs Mine Train',
+  'Peter Pan\'s Flight',
+  'Buzz Lightyear\'s Space Ranger Spin',
+  'Dumbo the Flying Elephant',
+  'Mad Tea Party',
+  'Carousel of Progress',
+  
+  // EPCOT
+  'Guardians of the Galaxy: Cosmic Rewind',
+  'Test Track',
+  'Soarin\' Around the World',
+  'The Seas with Nemo & Friends',
+  'Journey Into Imagination with Figment',
+  'Spaceship Earth',
+  'Mission: SPACE',
+  'The Land Pavilion',
+  'Frozen Ever After',
+  'Gran Fiesta Tour',
+  
+  // Hollywood Studios
+  'Rise of the Resistance',
+  'Millennium Falcon: Smugglers Run',
+  'Tower of Terror',
+  'Rock \'n\' Roller Coaster',
+  'Mickey & Minnie\'s Runaway Railway',
+  'Toy Story Midway Mania!',
+  'Alien Swirling Saucers',
+  'Slinky Dog Dash',
+  'Star Tours',
+  'Indiana Jones Epic Stunt Spectacular',
+  
+  // Animal Kingdom
+  'Avatar Flight of Passage',
+  'Na\'vi River Journey',
+  'Expedition Everest',
+  'Kilimanjaro Safaris',
+  'Dinosaur',
+  'It\'s Tough to be a Bug!',
+  'Kali River Rapids',
+  'TriceraTop Spin',
+  'The Boneyard',
+  'Festival of the Lion King'
+]; 

@@ -4,6 +4,14 @@ A comprehensive web application for planning your magical Disney vacation! This 
 
 ## Features
 
+### 👥 Account-Level Profile Management
+- **Account-Based Profiles**: Manage family members at the account level for reuse across multiple trips
+- **Trip Assignment System**: Assign specific profiles to individual trips for flexible participation
+- **Comprehensive Data**: Track names, ages, dietary preferences, and ride preferences for each family member
+- **Disney Preferences**: Store favorite Disney characters, attractions, and personal Disney interests
+- **Smart Assignment**: Visual interface to easily assign and unassign people to trips
+- **Cross-Trip Reusability**: Use the same family profiles across multiple Disney vacations
+
 ### 🗓️ Trip Day Management
 - Add multiple days to your trip
 - Select which Disney parks you'll visit each day
@@ -47,6 +55,7 @@ A comprehensive web application for planning your magical Disney vacation! This 
 - **Dining Recommendations**: Restaurant suggestions based on cuisine, budget, and dietary needs
 - **Ride Suggestions**: Attraction recommendations tailored to your thrill level and interests
 - **Trip Summary**: Encouraging overviews with tips for a successful vacation
+- **AI Trip Import**: Upload any itinerary file (text or Word doc) and have AI automatically convert it into a structured Disney trip plan
 - **Powered by OpenAI**: Uses o3-mini for intelligent suggestions (see `openai-setup.md`)
 
 ### 💾 Data Management
@@ -201,6 +210,22 @@ git remote -v
 3. Select the food type
 4. Enter location, time, and budget
 5. Add any dietary notes or preferences
+
+### Managing Account Profiles
+1. **Account-Level Management**: 
+   - Click the **"Manage Profiles"** button in the trip manager to access family profile management
+   - Alternatively, click the "Profiles" tab when viewing a specific trip
+2. **Create Profiles**: Click "Add Person" to create new family member profiles with:
+   - Required information (name and age)
+   - Optional details (gender, dietary restrictions, ride preferences)
+   - Disney favorites (characters, attractions, interests)
+3. **Trip Assignment**: When viewing a specific trip:
+   - Use the "Profiles" tab to see the assignment interface
+   - Click "Assign to Trip" to add family members to the current trip
+   - Click "Assigned to Trip" to remove them from the trip
+   - Visual indicators show who's currently assigned
+4. **Cross-Trip Use**: Profiles can be reused across multiple trips without re-entering data
+5. **Profile Management**: Edit or delete profiles using hover controls (deletion removes from all trips)
 
 ### Managing Your Trip
 - Use the summary cards at the top to see trip statistics
