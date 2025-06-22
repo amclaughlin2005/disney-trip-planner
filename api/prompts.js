@@ -1,5 +1,9 @@
 const { put, del, list, head } = require('@vercel/blob');
 
+// Add debugging for environment variables
+console.log('BLOB_READ_WRITE_TOKEN available:', !!process.env.BLOB_READ_WRITE_TOKEN);
+console.log('BLOB_READ_WRITE_TOKEN length:', process.env.BLOB_READ_WRITE_TOKEN?.length || 0);
+
 // Default prompts that will be initialized if none exist
 const defaultPrompts = [
   {
@@ -158,8 +162,18 @@ module.exports = async function handler(req, res) {
 
 async function handleGetPrompts(req, res) {
   try {
+    console.log('handleGetPrompts called');
+    
+    // Check if we have the required environment variable
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN environment variable is not set');
+      return res.json({ prompts: defaultPrompts });
+    }
+
     // Try to get prompts from Vercel Blob
+    console.log('Listing blobs with prefix ai-prompts/');
     const { blobs } = await list({ prefix: 'ai-prompts/' });
+    console.log('Found', blobs.length, 'blobs:', blobs.map(b => b.pathname));
     
     if (blobs.length === 0) {
       // No prompts exist, initialize with defaults
@@ -172,13 +186,16 @@ async function handleGetPrompts(req, res) {
     const promptsBlob = blobs.find(blob => blob.pathname === 'ai-prompts/prompts.json');
     if (!promptsBlob) {
       // Prompts file doesn't exist, initialize with defaults
+      console.log('prompts.json not found, initializing with defaults');
       await initializeDefaultPrompts();
       return res.json({ prompts: defaultPrompts });
     }
 
     // Fetch the prompts data
+    console.log('Fetching prompts from:', promptsBlob.url);
     const response = await fetch(promptsBlob.url);
     const prompts = await response.json();
+    console.log('Retrieved', prompts.length, 'prompts from blob storage');
     
     return res.json({ prompts });
   } catch (error) {
@@ -190,19 +207,37 @@ async function handleGetPrompts(req, res) {
 
 async function handleSavePrompts(req, res) {
   try {
+    console.log('handleSavePrompts called with:', req.body);
     const { prompts } = req.body;
     
     if (!prompts || !Array.isArray(prompts)) {
+      console.error('Invalid prompts data:', prompts);
       return res.status(400).json({ error: 'Invalid prompts data' });
     }
 
-    // Save prompts to Vercel Blob
+    console.log('Attempting to save', prompts.length, 'prompts to Vercel Blob');
+
+    // Check if we have the required environment variable
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN environment variable is not set');
+      return res.status(500).json({ error: 'Blob storage not configured' });
+    }
+
+    // Save prompts to Vercel Blob (delete existing first, then create new)
+    try {
+      // Try to delete existing file first
+      await del('ai-prompts/prompts.json');
+    } catch (deleteError) {
+      // File might not exist, which is fine
+      console.log('No existing prompts file to delete (this is fine)');
+    }
+    
     const blob = await put('ai-prompts/prompts.json', JSON.stringify(prompts, null, 2), {
       access: 'public',
       contentType: 'application/json'
     });
 
-    console.log('Prompts saved to blob storage:', blob.url);
+    console.log('Prompts saved successfully to blob storage:', blob.url);
     return res.json({ success: true, url: blob.url });
   } catch (error) {
     console.error('Error saving prompts:', error);
@@ -283,11 +318,28 @@ async function handleResetPrompts(req, res) {
 
 async function initializeDefaultPrompts() {
   try {
+    console.log('Initializing default prompts...');
+    
+    // Check if we have the required environment variable
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN environment variable is not set');
+      throw new Error('Blob storage not configured');
+    }
+
+    // Try to delete existing file first
+    try {
+      await del('ai-prompts/prompts.json');
+      console.log('Deleted existing prompts file');
+    } catch (deleteError) {
+      // File might not exist, which is fine
+      console.log('No existing prompts file to delete (this is fine)');
+    }
+
     const blob = await put('ai-prompts/prompts.json', JSON.stringify(defaultPrompts, null, 2), {
       access: 'public',
       contentType: 'application/json'
     });
-    console.log('Default prompts initialized in blob storage:', blob.url);
+    console.log('Default prompts initialized successfully in blob storage:', blob.url);
     return blob;
   } catch (error) {
     console.error('Error initializing default prompts:', error);

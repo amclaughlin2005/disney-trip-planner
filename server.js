@@ -2,6 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
+// Load environment variables from .env file if it exists
+if (require('fs').existsSync('.env')) {
+  require('dotenv').config();
+}
+
 // Import API handlers
 const openaiHandler = require('./api/openai');
 const promptsHandler = require('./api/prompts');
