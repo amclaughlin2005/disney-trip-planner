@@ -100,7 +100,7 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
     const maxTokens = prompt?.maxTokens || 1000;
 
     const response = await openai.chat.completions.create({
-      model: 'o3-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -111,7 +111,7 @@ Keep it practical and actionable, focusing on real Disney World experiences.`;
           content: finalUserPrompt
         }
       ],
-      max_completion_tokens: maxTokens
+      max_tokens: maxTokens
     });
 
     return res.json({ 
@@ -154,7 +154,7 @@ Please provide:
 Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
 
     const response = await openai.chat.completions.create({
-      model: 'o3-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -165,7 +165,7 @@ Format as JSON with suggestedOrder, timeEstimates, tips, and warnings arrays.`;
           content: promptText
         }
       ],
-      max_completion_tokens: 800
+      max_tokens: 800
     });
 
     const content = response.choices[0]?.message?.content || '';
@@ -366,7 +366,7 @@ Preferences:
 Recommend 5-8 attractions with timing strategies and Lightning Lane recommendations.`;
 
     const response = await openai.chat.completions.create({
-      model: 'o3-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -377,7 +377,7 @@ Recommend 5-8 attractions with timing strategies and Lightning Lane recommendati
           content: prompt
         }
       ],
-      max_completion_tokens: 600
+      max_tokens: 600
     });
 
     const content = response.choices[0]?.message?.content || '';
@@ -419,7 +419,7 @@ Total planned activities: ${totalActivities}
 Create an encouraging summary highlighting what makes this trip special and any tips for success.`;
 
     const response = await openai.chat.completions.create({
-      model: 'o3-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -430,7 +430,7 @@ Create an encouraging summary highlighting what makes this trip special and any 
           content: prompt
         }
       ],
-      max_completion_tokens: 300
+      max_tokens: 300
     });
 
     return res.json({ 
