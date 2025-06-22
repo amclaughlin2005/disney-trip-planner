@@ -242,10 +242,11 @@ const TripManager: React.FC<TripManagerProps> = ({
         
         <button
           onClick={() => setShowTripList(true)}
-          className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-disney-green text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium min-h-[44px]"
+          className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium min-h-[44px]"
+          title="View trips in modal format"
         >
           <FolderOpen size={16} />
-          <span>Load Trip</span>
+          <span>Browse Trips</span>
         </button>
 
         {currentTrip && (
@@ -296,6 +297,114 @@ const TripManager: React.FC<TripManagerProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Saved Trips Tiles */}
+      {trips.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Your Saved Trips</h3>
+            <span className="text-sm text-gray-500">{trips.length} trip{trips.length !== 1 ? 's' : ''}</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {trips.map((trip) => (
+              <div
+                key={trip.id}
+                className={`group relative bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 border-2 cursor-pointer overflow-hidden ${
+                  currentTrip?.id === trip.id
+                    ? 'border-disney-blue bg-disney-blue bg-opacity-5 ring-2 ring-disney-blue ring-opacity-20'
+                    : 'border-gray-200 hover:border-disney-blue hover:border-opacity-50'
+                }`}
+                onClick={() => {
+                  onTripSelect(trip);
+                }}
+              >
+                {/* Trip Header */}
+                <div className="p-4 pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-gray-900 text-base truncate group-hover:text-disney-blue transition-colors">
+                        {trip.name}
+                      </h4>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {formatDateSafe(trip.startDate, 'MMM d')} - {formatDateSafe(trip.endDate, 'MMM d, yyyy')}
+                      </div>
+                    </div>
+                    {currentTrip?.id === trip.id && (
+                      <div className="ml-2 px-2 py-1 bg-disney-blue text-white text-xs rounded-full font-medium">
+                        Active
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Trip Details */}
+                <div className="px-4 pb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-4">
+                      <span className="flex items-center space-x-1 text-gray-600">
+                        <Calendar size={14} />
+                        <span>{getTripDuration(trip.startDate, trip.endDate)}</span>
+                      </span>
+                      {trip.days.length > 0 && (
+                        <span className="text-disney-green font-medium">
+                          {trip.days.length} day{trip.days.length !== 1 ? 's' : ''} planned
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {trip.resort && (
+                    <div className="mt-2 flex items-center space-x-1 text-sm text-gray-600">
+                      <MapPin size={14} />
+                      <span className="truncate">{trip.resort.name}</span>
+                    </div>
+                  )}
+                  
+                  <div className="mt-2 text-xs text-blue-600 font-medium">
+                    {getTripOwnershipInfo(trip)}
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTrip(trip.id);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    title="Delete trip"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                {/* Hover Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-disney-blue to-disney-purple opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty State for No Trips */}
+      {trips.length === 0 && !isLoading && (
+        <div className="mt-8 text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+          <Calendar size={64} className="mx-auto mb-4 text-gray-400" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No trips yet</h3>
+          <p className="text-gray-600 mb-6">Create your first Disney trip to get started planning your magical vacation!</p>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            disabled={!canCreateTrips()}
+            className="inline-flex items-center space-x-2 px-6 py-3 bg-disney-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!canCreateTrips() ? 'You must be assigned to an account to create trips' : ''}
+          >
+            <Plus size={20} />
+            <span>Create Your First Trip</span>
+          </button>
         </div>
       )}
 
@@ -409,7 +518,7 @@ const TripManager: React.FC<TripManagerProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 sm:p-6 border-b">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Select Trip</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Browse Your Trips</h2>
               <button
                 onClick={() => setShowTripList(false)}
                 className="text-gray-400 hover:text-gray-600 p-1 min-h-[44px] min-w-[44px] flex items-center justify-center"

@@ -53,6 +53,7 @@ A comprehensive web application for planning your magical Disney vacation! This 
 - **Local Storage**: Automatic saving to your device
 - **Cloud Storage**: Optional Vercel Blob integration for cross-device sync
 - **Export/Import**: Save trip data as JSON files
+- **Trip Tiles**: Beautiful visual display of all your saved trips on the main page
 - **No Account Required**: Works offline with local storage
 - **Cross-Device Sync**: Available with Vercel Blob setup (see `vercel-blob-setup.md`)
 

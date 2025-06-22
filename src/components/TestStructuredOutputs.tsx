@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { aiService } from '../services/openai';
 import type { Trip, TripDay } from '../types';
+import { PARKS } from '../types';
 
 const TestStructuredOutputs: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -17,13 +18,51 @@ const TestStructuredOutputs: React.FC = () => {
       {
         id: 'day-1',
         date: '2024-07-01',
-        park: { id: 'mk', name: 'Magic Kingdom' },
-        rides: [{ id: 'space-mountain', name: 'Space Mountain' }],
-        food: [{ id: 'dole-whip', name: 'Dole Whip', timeSlot: '2:00 PM' }],
-        reservations: [{ id: 'dinner', name: 'Be Our Guest', time: '6:00 PM' }]
+        park: PARKS.find(p => p.id === 'mk') || null,
+        transportation: [],
+        rides: [{
+          id: 'space-mountain',
+          name: 'Space Mountain',
+          park: 'Magic Kingdom',
+          type: 'attraction',
+          priority: 'must-do',
+          duration: 45,
+          color: 'disney-blue'
+        }],
+        food: [{
+          id: 'dole-whip',
+          name: 'Dole Whip',
+          type: 'snack',
+          location: 'Adventureland',
+          mealType: 'snack',
+          timeSlot: '2:00 PM',
+          partySize: 4,
+          budget: 15,
+          color: 'disney-yellow'
+        }],
+        reservations: [{
+          id: 'dinner',
+          name: 'Be Our Guest',
+          type: 'dining',
+          location: 'Magic Kingdom',
+          date: '2024-07-01',
+          time: '6:00 PM',
+          partySize: 4,
+          color: 'disney-green'
+        }]
       }
     ],
-    resort: { id: 'poly', name: 'Polynesian Resort' }
+    resort: {
+      id: 'polynesian',
+      name: 'Disney\'s Polynesian Village Resort',
+      category: 'deluxe',
+      location: 'Magic Kingdom Area',
+      transportation: ['monorail', 'boat']
+    },
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+    accountId: 'test-account',
+    createdBy: 'test-user'
   };
 
   const sampleDay: TripDay = sampleTrip.days[0];
@@ -40,7 +79,7 @@ const TestStructuredOutputs: React.FC = () => {
         mobility: 'high',
         thrillLevel: 'moderate'
       });
-      setResults(prev => ({ ...prev, itinerary: result }));
+      setResults((prev: any) => ({ ...prev, itinerary: result }));
     } catch (err) {
       setError(`Itinerary test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -56,7 +95,7 @@ const TestStructuredOutputs: React.FC = () => {
         crowdTolerance: 'medium',
         walkingDistance: 'moderate'
       });
-      setResults(prev => ({ ...prev, optimization: result }));
+      setResults((prev: any) => ({ ...prev, optimization: result }));
     } catch (err) {
       setError(`Optimization test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -74,7 +113,7 @@ const TestStructuredOutputs: React.FC = () => {
         groupSize: 4,
         dietaryRestrictions: ['vegetarian']
       });
-      setResults(prev => ({ ...prev, dining: result }));
+      setResults((prev: any) => ({ ...prev, dining: result }));
     } catch (err) {
       setError(`Dining test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -91,7 +130,7 @@ const TestStructuredOutputs: React.FC = () => {
         ages: [8, 12],
         interests: ['fantasy', 'adventure']
       });
-      setResults(prev => ({ ...prev, rides: result }));
+      setResults((prev: any) => ({ ...prev, rides: result }));
     } catch (err) {
       setError(`Rides test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -103,7 +142,7 @@ const TestStructuredOutputs: React.FC = () => {
     setError('');
     try {
       const result = await aiService.generateTripSummary(sampleTrip);
-      setResults(prev => ({ ...prev, summary: result }));
+      setResults((prev: any) => ({ ...prev, summary: result }));
     } catch (err) {
       setError(`Summary test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }

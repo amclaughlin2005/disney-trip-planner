@@ -202,6 +202,8 @@ const AdminRoute = ({ children }) => {
 ##### **`TripManager.tsx`** - Trip CRUD Operations
 - **Purpose**: Central hub for all trip-related operations with account awareness
 - **Key Features**:
+  - **Trip Tiles Display**: Automatic display of saved trips as interactive tiles on the main page
+  - **Enhanced User Experience**: Users can see all their trips immediately without clicking "Load Trip"
   - Account-scoped trip loading and filtering
   - Trip creation with form validation and account assignment
   - Import/export functionality (JSON format)
@@ -209,8 +211,15 @@ const AdminRoute = ({ children }) => {
   - Real-time storage status indicators
   - Permission-based trip operations
   - Admin Panel access button for super admins
+- **Trip Tiles Features**:
+  - **Visual Trip Cards**: Beautiful card-based layout with trip details, dates, and resort information
+  - **Active Trip Indication**: Clear visual indicator for currently selected trip
+  - **Quick Actions**: Hover-activated delete button on each trip tile
+  - **Trip Statistics**: Shows trip duration and planned days at a glance
+  - **Responsive Grid**: Adapts to screen size (1-3 columns based on device)
+  - **Empty State**: Encouraging call-to-action when no trips exist
 - **Data Storage**: Supports both cloud (Vercel Blob) and local storage
-- **User Experience**: Responsive design with mobile-optimized forms
+- **User Experience**: Responsive design with mobile-optimized forms and improved trip discovery
 - **Security**: Only shows trips user has permission to access
 
 ##### **`TripDayCard.tsx`** - Individual Day Management
