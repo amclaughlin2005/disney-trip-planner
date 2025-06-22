@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Building, Users, ArrowRight, Sparkles, CheckCircle, Crown } from 'lucide-react';
+import { Building, Users, ArrowRight, Sparkles, CheckCircle, Crown } from 'lucide-react';
 import { useUserManagement } from '../hooks/useUserManagement';
 
 interface AccountSetupProps {
@@ -83,7 +83,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({ mode = 'welcome', onComplet
         <div className="mb-6">
           {mode === 'welcome' ? (
             <>
-              <Shield className="h-16 w-16 text-disney-blue mx-auto mb-4" />
+              <span className="text-4xl mx-auto mb-4 block">🏰</span>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Welcome to Disney Trip Planner! 🏰
               </h1>
@@ -197,7 +197,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({ mode = 'welcome', onComplet
               </div>
             </div>
             <div className="flex items-start space-x-3">
-              <Shield className="h-5 w-5 text-disney-blue flex-shrink-0 mt-0.5" />
+                                <span className="text-lg flex-shrink-0 mt-0.5">🏰</span>
               <div>
                 <p className="text-sm font-medium text-gray-900">Secure Cloud Storage</p>
                 <p className="text-sm text-gray-500">Your trip data is safely stored and accessible anywhere</p>

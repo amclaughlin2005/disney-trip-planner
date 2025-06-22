@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Crown, Calendar, Plus, List, Grid, Bot, Shield, Sparkles, Users } from 'lucide-react';
+import { Crown, Calendar, Plus, List, Grid, Bot, Sparkles, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import AuthWrapper from './components/AuthWrapper';
 import TripManager from './components/TripManager';
@@ -87,7 +87,7 @@ const MainApp: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
               <div className="flex items-center justify-center mb-4">
                 <div className="bg-green-100 rounded-full p-3">
-                  <Shield className="h-8 w-8 text-green-600" />
+                  <span className="text-2xl">🏰</span>
                 </div>
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">

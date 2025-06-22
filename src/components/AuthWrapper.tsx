@@ -1,6 +1,6 @@
 import React from 'react';
 import { ClerkProvider, useAuth, useUser, SignInButton, UserButton } from '@clerk/clerk-react';
-import { Shield, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
 
@@ -30,7 +30,7 @@ const AuthContent: React.FC<AuthWrapperProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <Shield className="h-8 w-8 text-disney-blue" />
+              <span className="text-2xl">🏰</span>
               <h1 className="text-xl font-bold text-gray-900">
                 Disney Trip Planner
               </h1>
@@ -68,7 +68,7 @@ const AuthContent: React.FC<AuthWrapperProps> = ({ children }) => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <div className="mb-8">
-              <Shield className="h-24 w-24 text-disney-blue mx-auto mb-4" />
+              <span className="text-6xl mx-auto mb-4 block">🏰</span>
               <h1 className="text-4xl font-bold text-gray-900 mb-4">
                 Welcome to Disney Trip Planner
               </h1>

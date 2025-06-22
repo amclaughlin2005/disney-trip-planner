@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut, ArrowLeft, MessageSquare, Save, RotateCcw } from 'lucide-react';
+import { Users, Settings, UserPlus, Trash2, Edit, Crown, X, Mail, User, Building, ArrowRight, UserCheck, Eye, LogOut, ArrowLeft, MessageSquare, Save, RotateCcw } from 'lucide-react';
 import { AppUser, UserAccount } from '../types';
 import { useUserManagement } from '../hooks/useUserManagement';
 
@@ -603,7 +603,7 @@ Instructions:
   if (!isCurrentUserSuperAdmin) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16">
-        <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                  <span className="text-4xl mx-auto mb-4 block">🏰</span>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
         <p className="text-gray-600">You don't have permission to access the admin panel.</p>
       </div>
@@ -666,7 +666,7 @@ Instructions:
         <nav className="flex space-x-8">
           {[
             { id: 'users', label: 'Users', icon: Users },
-            { id: 'accounts', label: 'Accounts', icon: Shield },
+            { id: 'accounts', label: 'Accounts', icon: () => <span className="text-lg">🏰</span> },
             { id: 'impersonation', label: 'Impersonation', icon: Eye },
             { id: 'prompts', label: 'AI Prompts', icon: MessageSquare },
             { id: 'settings', label: 'Settings', icon: Settings }
@@ -864,7 +864,7 @@ Instructions:
               <div className="grid gap-6">
                 {accounts.length === 0 ? (
                   <div className="bg-white shadow rounded-lg p-6 text-center">
-                    <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <span className="text-3xl mx-auto mb-4 block">🏰</span>
                     <p className="text-gray-500">No accounts created yet.</p>
                   </div>
                 ) : (
@@ -1008,7 +1008,7 @@ Instructions:
                {/* Warning */}
                <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                  <div className="flex items-start">
-                   <Shield className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                   <span className="text-lg text-yellow-600 mt-0.5 mr-3 flex-shrink-0">🏰</span>
                    <div>
                      <h4 className="text-sm font-medium text-yellow-800">Impersonation Guidelines</h4>
                      <div className="text-sm text-yellow-700 mt-1">

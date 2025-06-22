@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Sparkles, Users, Building, Crown, ArrowRight } from 'lucide-react';
+import { Sparkles, Users, Building, Crown, ArrowRight } from 'lucide-react';
 import AccountSetup from './AccountSetup';
 import { useUserManagement } from '../hooks/useUserManagement';
 
@@ -11,7 +11,7 @@ const WelcomeNewUser: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         {/* Welcome Header */}
         <div className="text-center mb-8">
-          <Shield className="h-20 w-20 text-disney-blue mx-auto mb-4" />
+          <span className="text-5xl mx-auto mb-4 block">🏰</span>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Welcome to Disney Trip Planner! 🏰
           </h1>
